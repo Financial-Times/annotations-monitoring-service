@@ -1,0 +1,69 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "fNgRM8ZlaDzdvSpuhSdGxEOrWi4=",
+			"path": "github.com/Financial-Times/go-fthealth/v1_1",
+			"revision": "e7ccca038327a0091303a52445ec1f0fb66cb97b",
+			"revisionTime": "2017-05-25T09:50:41Z"
+		},
+		{
+			"checksumSHA1": "45GvFsXaiSwzsbJjHirwQkGfDno=",
+			"path": "github.com/Financial-Times/go-logger",
+			"revision": "a9c029b152cbd4b940c901c6e5a4ff603a46e8d2",
+			"revisionTime": "2017-07-27T14:33:01Z"
+		},
+		{
+			"checksumSHA1": "fqpohN7Qp2qj7TLMbUxh/cK4oH0=",
+			"path": "github.com/Financial-Times/service-status-go/buildinfo",
+			"revision": "3f5199736a3d7ae52394c63aac36834786825e21",
+			"revisionTime": "2016-03-23T11:15:42Z"
+		},
+		{
+			"checksumSHA1": "2rGNLXdRC3qr5n5ll7BpYt8HCK8=",
+			"path": "github.com/Financial-Times/service-status-go/gtg",
+			"revision": "3f5199736a3d7ae52394c63aac36834786825e21",
+			"revisionTime": "2016-03-23T11:15:42Z"
+		},
+		{
+			"checksumSHA1": "973POGyMCoyaKQuIYX2f7EKFwlQ=",
+			"path": "github.com/Financial-Times/service-status-go/httphandlers",
+			"revision": "3f5199736a3d7ae52394c63aac36834786825e21",
+			"revisionTime": "2016-03-23T11:15:42Z"
+		},
+		{
+			"checksumSHA1": "cT6+XPBZiXsFbb7cXT6AYNrZyuM=",
+			"origin": "github.com/Financial-Times/go-logger/vendor/github.com/Sirupsen/logrus",
+			"path": "github.com/Sirupsen/logrus",
+			"revision": "a9c029b152cbd4b940c901c6e5a4ff603a46e8d2",
+			"revisionTime": "2017-07-27T14:33:01Z"
+		},
+		{
+			"checksumSHA1": "Lglgc8iIRhqbqd8fpAZKpo/eqeY=",
+			"origin": "github.com/Financial-Times/go-logger/vendor/github.com/Sirupsen/logrus/hooks/test",
+			"path": "github.com/Sirupsen/logrus/hooks/test",
+			"revision": "a9c029b152cbd4b940c901c6e5a4ff603a46e8d2",
+			"revisionTime": "2017-07-27T14:33:01Z"
+		},
+		{
+			"checksumSHA1": "tUGxc7rfX0cmhOOUDhMuAZ9rWsA=",
+			"path": "github.com/hashicorp/go-version",
+			"revision": "03c5bf6be031b6dd45afec16b1cf94fc8938bc77",
+			"revisionTime": "2017-02-02T08:07:59Z"
+		},
+		{
+			"checksumSHA1": "L8XpCeKaTaU3FiV9S4Bl93WZiLU=",
+			"path": "github.com/jawher/mow.cli",
+			"revision": "0de3d3b4ed00f261460d12ecde4efa90fbfcd8ed",
+			"revisionTime": "2016-11-23T22:54:47Z"
+		},
+		{
+			"checksumSHA1": "uTQtOqR0ePMMcvuvAIksiIZxhqU=",
+			"path": "golang.org/x/sys/unix",
+			"revision": "7a6e5648d140666db5d920909e082ca00a87ba2c",
+			"revisionTime": "2017-02-01T04:15:14Z"
+		}
+	],
+	"rootPath": "github.com/Financial-Times/annotations-monitoring-service"
+}
