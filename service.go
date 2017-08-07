@@ -142,7 +142,7 @@ func monitorTransactions(urlStr string) {
 				"uuid":             tid.UUID,
 				"startTime":        startTime,
 				"endTime":          endTime,
-				"duration":         duration.Seconds(),
+				"duration":         string(duration.Seconds()),
 				"content_type":     contentType,
 				"monitoring_event": "true",
 				"read_enabled":     "true"}, "Transaction has finished")
@@ -194,7 +194,7 @@ func fixSuperseededTransactions(urlStr string, sortedCompletedTids completedTran
 						"startTime":        t,
 						"endTime":          ctid.EndTime,
 						"content_type":     contentType,
-						"duration":         duration.Seconds(),
+						"duration":         string(duration.Seconds()),
 						"monitoring_event": "true",
 						"read_enabled":     "true"}, "Transaction has finished")
 
