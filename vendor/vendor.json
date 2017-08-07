@@ -34,17 +34,15 @@
 		},
 		{
 			"checksumSHA1": "cT6+XPBZiXsFbb7cXT6AYNrZyuM=",
-			"origin": "github.com/Financial-Times/go-logger/vendor/github.com/Sirupsen/logrus",
 			"path": "github.com/Sirupsen/logrus",
-			"revision": "a9c029b152cbd4b940c901c6e5a4ff603a46e8d2",
-			"revisionTime": "2017-07-27T14:33:01Z"
+			"revision": "3f603f494d61c73457fb234161d8982b9f0f0b71",
+			"revisionTime": "2017-02-07T18:34:08Z"
 		},
 		{
 			"checksumSHA1": "Lglgc8iIRhqbqd8fpAZKpo/eqeY=",
-			"origin": "github.com/Financial-Times/go-logger/vendor/github.com/Sirupsen/logrus/hooks/test",
 			"path": "github.com/Sirupsen/logrus/hooks/test",
-			"revision": "a9c029b152cbd4b940c901c6e5a4ff603a46e8d2",
-			"revisionTime": "2017-07-27T14:33:01Z"
+			"revision": "3f603f494d61c73457fb234161d8982b9f0f0b71",
+			"revisionTime": "2017-02-07T18:34:08Z"
 		},
 		{
 			"checksumSHA1": "tUGxc7rfX0cmhOOUDhMuAZ9rWsA=",
