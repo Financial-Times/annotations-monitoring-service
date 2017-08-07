@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"sort"
 	"time"
+	"fmt"
 )
 
 const (
@@ -141,7 +142,7 @@ func monitorTransactions(urlStr string) {
 				"uuid":             tid.UUID,
 				"startTime":        startTime,
 				"endTime":          endTime,
-				"duration":         string(duration.Seconds()),
+				"duration":         fmt.Sprint(duration.Seconds()),
 				"content_type":     contentType,
 				"monitoring_event": "true",
 				"read_enabled":     "true"}, "Transaction has finished")
@@ -193,7 +194,7 @@ func fixSuperseededTransactions(urlStr string, sortedCompletedTids completedTran
 						"startTime":        t,
 						"endTime":          ctid.EndTime,
 						"content_type":     contentType,
-						"duration":         string(duration.Seconds()),
+						"duration":         fmt.Sprint(duration.Seconds()),
 						"monitoring_event": "true",
 						"read_enabled":     "true"}, "Transaction has finished")
 
