@@ -21,7 +21,6 @@ const (
 
 func getTransactions(urlStr string, uuids []string) (transactions, error) {
 
-	logger.Infof(nil, "url: %s", urlStr)
 	req, err := http.NewRequest("GET", urlStr, nil)
 
 	if uuids != nil && len(uuids) != 0 {
