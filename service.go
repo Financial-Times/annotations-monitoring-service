@@ -120,8 +120,8 @@ func monitorTransactions(urlStr string) {
 					"startTime":        startTime,
 					"endTime":          endTime,
 					"transaction_id":   tid.TransactionID,
-					"read_enabled":     true,
-					"monitoring_event": true,
+					"read_enabled":     "true",
+					"monitoring_event": "true",
 					"isValid":          "false",
 					"content_type":     contentType,
 				}, "Transaction has finished")
@@ -144,8 +144,8 @@ func monitorTransactions(urlStr string) {
 				"endTime":          endTime,
 				"duration":         duration.Seconds(),
 				"content_type":     contentType,
-				"monitoring_event": true,
-				"read_enabled":     true}, "Transaction has finished")
+				"monitoring_event": "true",
+				"read_enabled":     "true"}, "Transaction has finished")
 		}
 	}
 
@@ -194,9 +194,9 @@ func fixSuperseededTransactions(urlStr string, sortedCompletedTids completedTran
 						"startTime":        t,
 						"endTime":          ctid.EndTime,
 						"content_type":     contentType,
-						"duration":         duration,
-						"monitoring_event": true,
-						"read_enabled":     true}, "Transaction has finished")
+						"duration":         duration.Seconds(),
+						"monitoring_event": "true",
+						"read_enabled":     "true"}, "Transaction has finished")
 
 					//remove from unprocessedTransactionList
 					unprocessedTids = append(unprocessedTids[:i], unprocessedTids[i+1:]...)
