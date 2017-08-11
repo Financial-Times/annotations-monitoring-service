@@ -45,6 +45,36 @@
 			"revisionTime": "2017-02-07T18:34:08Z"
 		},
 		{
+			"checksumSHA1": "Zgqp9pp3G4cSZbepa6tzhNeHZOI=",
+			"path": "github.com/coreos/etcd/client",
+			"revision": "af7d0510190f2de70e2ef7d9a2fd5bf7bc89b917",
+			"revisionTime": "2017-05-06T06:31:59Z"
+		},
+		{
+			"checksumSHA1": "mKIXx1kDwmVmdIpZ3pJtRBuUKso=",
+			"path": "github.com/coreos/etcd/pkg/pathutil",
+			"revision": "af7d0510190f2de70e2ef7d9a2fd5bf7bc89b917",
+			"revisionTime": "2017-05-06T06:31:59Z"
+		},
+		{
+			"checksumSHA1": "gx1gJIMU6T0UNQ0bPZ/drQ8cpCI=",
+			"path": "github.com/coreos/etcd/pkg/types",
+			"revision": "af7d0510190f2de70e2ef7d9a2fd5bf7bc89b917",
+			"revisionTime": "2017-05-06T06:31:59Z"
+		},
+		{
+			"checksumSHA1": "6pp6Xsm0EFoi5iVBr+cXbrF5raw=",
+			"path": "github.com/coreos/etcd/version",
+			"revision": "af7d0510190f2de70e2ef7d9a2fd5bf7bc89b917",
+			"revisionTime": "2017-05-06T06:31:59Z"
+		},
+		{
+			"checksumSHA1": "nux9tCYmTA5bOCVODF3Rqzcu60U=",
+			"path": "github.com/coreos/go-semver/semver",
+			"revision": "5e3acbb5668c4c3deb4842615c4098eb61fb6b1e",
+			"revisionTime": "2017-02-09T20:17:57Z"
+		},
+		{
 			"checksumSHA1": "tUGxc7rfX0cmhOOUDhMuAZ9rWsA=",
 			"path": "github.com/hashicorp/go-version",
 			"revision": "03c5bf6be031b6dd45afec16b1cf94fc8938bc77",
@@ -55,6 +85,18 @@
 			"path": "github.com/jawher/mow.cli",
 			"revision": "0de3d3b4ed00f261460d12ecde4efa90fbfcd8ed",
 			"revisionTime": "2016-11-23T22:54:47Z"
+		},
+		{
+			"checksumSHA1": "SubpTLnurFt1lvW8AftpgpA50go=",
+			"path": "github.com/ugorji/go/codec",
+			"revision": "5cd0f2b3b6cca8e3a0a4101821e41a73cb59bed6",
+			"revisionTime": "2016-08-25T15:51:36Z"
+		},
+		{
+			"checksumSHA1": "Y+HGqEkYM15ir+J93MEaHdyFy0c=",
+			"path": "golang.org/x/net/context",
+			"revision": "236b8f043b920452504e263bc21d354427127473",
+			"revisionTime": "2017-02-06T03:21:01Z"
 		},
 		{
 			"checksumSHA1": "uTQtOqR0ePMMcvuvAIksiIZxhqU=",
