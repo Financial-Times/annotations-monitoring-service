@@ -32,8 +32,9 @@ func main() {
 	})
 
 	eventReaderURL := app.String(cli.StringOpt{
-		Name:   "event-reader-url",
-		Value:  "http://localhost:8080/__splunk-event-reader/annotations/transactions",
+		Name: "event-reader-url",
+		//__splunk-event-reader/
+		Value:  "http://localhost:8080/",
 		Desc:   "The address of the event reader application",
 		EnvVar: "EVENT_READER_URL",
 	})

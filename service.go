@@ -1,14 +1,9 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/Financial-Times/go-logger"
 	"github.com/coreos/etcd/client"
-	"golang.org/x/net/context"
-	"io"
-	"io/ioutil"
-	"net/http"
 	"sort"
 	"strconv"
 	"time"
@@ -16,98 +11,65 @@ import (
 
 const (
 	contentType            = "Annotations"
-	uuidPathVar            = "uuid"
 	DefaultTimestampFormat = time.RFC3339
 	startEvent             = "PublishStart"
 	lastEvent              = "SaveNeo4j"
 	endEvent               = "PublishEnd"
 )
 
-func readEnabled(kAPI client.KeysAPI) bool {
-	//TODO: check how many successful transactions are in 5 minutes in prod, how heavily would etcd be affected... would it handle so many requests?
+func monitorAnnotationsFlow(eventReaderAddress string, keyAPI client.KeysAPI) {
 
-	//By default, the cluster will be considered as active. Consider inactive only if ETCD value confirms (failovers).
-	readEnabled := true
+	catchUP(eventReaderAddress, keyAPI)
 
-	resp, err := kAPI.Get(context.Background(), "/ft/healthcheck-categories/read/enabled", nil)
-	if err != nil {
-		logger.Errorf(nil, "Couldn't determine if the cluster is active. ETCD key can't be read. Error %v", err)
-		return readEnabled
-	}
-
-	b, err := strconv.ParseBool(resp.Node.Value)
-	if err != nil {
-		logger.Errorf(nil, "Couldn't determine if the cluster is active. ETCD key can't be parsed. Error %v", err)
-		return readEnabled
-	}
-
-	return b
-}
-
-func getTransactions(urlStr string, uuids []string) (transactions, error) {
-
-	req, err := http.NewRequest("GET", urlStr, nil)
-
-	if uuids != nil && len(uuids) != 0 {
-		for _, uuid := range uuids {
-			req.URL.Query().Add(uuidPathVar, uuid)
+	// check transations every 5 minutes
+	ticker := time.NewTicker(5 * time.Minute)
+	quit := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				//query for last 10 minutes
+				// TODO add validation for interval
+				monitorTransactions(eventReaderAddress, keyAPI, "10m")
+			case <-quit:
+				ticker.Stop()
+				return
+			}
 		}
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		logger.Errorf(map[string]interface{}{
-			"url":         req.Host + req.URL.Path,
-			"status code": resp.StatusCode,
-		}, "Failed to retrieve transaction.", err)
-		return nil, err
-	}
-	defer cleanUp(resp)
-
-	//TODO consider at least one retry?
-	if resp.StatusCode != http.StatusOK {
-		logger.Errorf(map[string]interface{}{
-			"url":         req.Host + req.URL.Path,
-			"status code": resp.StatusCode,
-		}, "Failed to retrieve transations")
-		//retry? threat status codes accordingly 500 -> retry; 404->nil; 200->parse and continue;
-		return nil, err
-	}
-
-	b, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		logger.Errorf(map[string]interface{}{
-			"url":         req.Host + req.URL.Path,
-			"status code": resp.StatusCode,
-		}, "Error parsing transaction body: %v", err)
-		return nil, err
-	}
-
-	var tids transactions
-	if err := json.Unmarshal(b, &tids); err != nil {
-		logger.Errorf(nil, "Error unmarshalling transaction log messages: %v", err)
-		return nil, err
-	}
-
-	return tids, nil
+	}()
 }
 
-func cleanUp(resp *http.Response) {
-	_, err := io.Copy(ioutil.Discard, resp.Body)
+func catchUP(eventReaderAddress string, keyAPI client.KeysAPI) {
+
+	event, err := getLastEvent(eventReaderAddress, "6h", true)
 	if err != nil {
-		logger.Warnf(nil, "[%v]", err)
+		logger.Errorf(nil, "Error retrieving the latest monitoring publishEnd event from Splunk.", err)
+		return
 	}
 
-	err = resp.Body.Close()
+	t, err := time.Parse(DefaultTimestampFormat, event.Time)
 	if err != nil {
-		logger.Warnf(nil, "[%v]", err)
+		logger.Errorf(nil, "Error parsing the last event's timestamp %v ", err)
 	}
+
+	//compute the duration since the last event was logged
+	//consider that value - 5 min => to keep the overlapping period
+	duration := time.Since(t)
+	finalDuration := duration.Minutes() + 5
+	if finalDuration < 10 {
+		finalDuration = 10
+	}
+
+	m := int(finalDuration)
+	interval := fmt.Sprintf("%dm", m)
+
+	monitorTransactions(eventReaderAddress, keyAPI, interval)
 }
 
-func monitorTransactions(urlStr string, keyApi client.KeysAPI) {
+func monitorTransactions(eventReaderAddress string, keyApi client.KeysAPI, interval string) {
 
 	// retrieve all the entries for a particular content type
-	tids, err := getTransactions(urlStr, nil)
+	tids, err := getTransactions(eventReaderAddress, nil, interval)
 	if err != nil {
 		logger.Errorf(nil, "Monitoring transactions has failed.", err)
 		return
@@ -148,7 +110,7 @@ func monitorTransactions(urlStr string, keyApi client.KeysAPI) {
 			continue
 		}
 
-		duration, err := calculateDuration(startTime, endTime)
+		duration, err := computeDuration(startTime, endTime)
 		if err != nil {
 			logger.ErrorEventWithUUID(tid.TransactionID, tid.UUID, "Error parsing timestamp %v ", err)
 		}
@@ -172,22 +134,10 @@ func monitorTransactions(urlStr string, keyApi client.KeysAPI) {
 	}
 
 	sort.Sort(completedTids)
-	fixSupersededTransactions(urlStr, completedTids)
+	fixSupersededTransactions(eventReaderAddress, completedTids)
 }
 
-func calculateDuration(startTime, endTime string) (time.Duration, error) {
-	et, err := time.Parse(DefaultTimestampFormat, endTime)
-	if err != nil {
-		return 0, err
-	}
-	st, err := time.Parse(DefaultTimestampFormat, startTime)
-	if err != nil {
-		return 0, err
-	}
-	return et.Sub(st), nil
-}
-
-func fixSupersededTransactions(urlStr string, sortedCompletedTids completedTransactionEvents) {
+func fixSupersededTransactions(eventReaderAddress string, sortedCompletedTids completedTransactionEvents) {
 
 	// check all transactions for that uuid that happened before
 
@@ -198,7 +148,7 @@ func fixSupersededTransactions(urlStr string, sortedCompletedTids completedTrans
 	}
 
 	// get all the uncompleted transactions for those uuids, that have started before our actual set
-	unprocessedTids, err := getTransactions(urlStr, uuids)
+	unprocessedTids, err := getTransactions(eventReaderAddress, uuids, "10m")
 	if err != nil {
 		logger.Errorf(nil, "Verification of possible superseded transactions has failed.", err)
 		return
@@ -220,7 +170,7 @@ func fixSupersededTransactions(urlStr string, sortedCompletedTids completedTrans
 				//check that it was a transaction that happened before the actual transaction
 				if b, t := earlierTransaction(utid, ctid); b {
 
-					duration, err := calculateDuration(t, ctid.EndTime)
+					duration, err := computeDuration(t, ctid.EndTime)
 					if err != nil {
 						logger.ErrorEventWithUUID(utid.TransactionID, utid.UUID, "Error parsing timestamp %v ", err)
 					}
@@ -271,26 +221,14 @@ func earlierTransaction(utid transactionEvent, ctid completedTransactionEvent) (
 	return isAnnotationEvent && isEarlier, startTime
 }
 
-func catchUP() {
-	//TO implement
-}
-
-func monitorAnnotationsFlow(url string, keyAPI client.KeysAPI) {
-	// every 5 minutes
-	catchUP()
-
-	ticker := time.NewTicker(5 * time.Minute)
-	quit := make(chan struct{})
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				//query for last 10 minutes
-				monitorTransactions(url, keyAPI)
-			case <-quit:
-				ticker.Stop()
-				return
-			}
-		}
-	}()
+func computeDuration(startTime, endTime string) (time.Duration, error) {
+	et, err := time.Parse(DefaultTimestampFormat, endTime)
+	if err != nil {
+		return 0, err
+	}
+	st, err := time.Parse(DefaultTimestampFormat, startTime)
+	if err != nil {
+		return 0, err
+	}
+	return et.Sub(st), nil
 }
