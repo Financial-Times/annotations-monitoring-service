@@ -10,16 +10,19 @@ import (
 )
 
 const (
-	contentType            = "Annotations"
-	DefaultTimestampFormat = time.RFC3339
-	startEvent             = "PublishStart"
-	lastEvent              = "SaveNeo4j"
-	endEvent               = "PublishEnd"
+	contentType               = "Annotations"
+	defaultTimestampFormat    = time.RFC3339
+	startEvent                = "PublishStart"
+	lastEvent                 = "SaveNeo4j"
+	endEvent                  = "PublishEnd"
+	defaultCheckBackInterval  = "6h"
+	defaultMonitoringInterval = "10m"
+	isLastEventRequired       = true
 )
 
-func monitorAnnotationsFlow(eventReaderAddress string, keyAPI client.KeysAPI) {
+func monitorAnnotationsFlow(eventReaderAddress string, readEnabledKey string, keyAPI client.KeysAPI) {
 
-	catchUP(eventReaderAddress, keyAPI)
+	catchUP(eventReaderAddress, readEnabledKey, keyAPI)
 
 	// check transations every 5 minutes
 	ticker := time.NewTicker(5 * time.Minute)
@@ -30,7 +33,9 @@ func monitorAnnotationsFlow(eventReaderAddress string, keyAPI client.KeysAPI) {
 			case <-ticker.C:
 				//query for last 10 minutes
 				// TODO add validation for interval
-				monitorTransactions(eventReaderAddress, keyAPI, "10m")
+				// TODO change code, so that the normal monitoring event would look back from the LATEST PUBLISHEND event
+				// - take the code from the catchUP method - ... refactor
+				monitorTransactions(eventReaderAddress, readEnabledKey, keyAPI, defaultMonitoringInterval)
 			case <-quit:
 				ticker.Stop()
 				return
@@ -39,15 +44,15 @@ func monitorAnnotationsFlow(eventReaderAddress string, keyAPI client.KeysAPI) {
 	}()
 }
 
-func catchUP(eventReaderAddress string, keyAPI client.KeysAPI) {
+func catchUP(eventReaderAddress string, readEnabledKey string, keyAPI client.KeysAPI) {
 
-	event, err := getLastEvent(eventReaderAddress, "6h", true)
+	event, err := getLastEvent(eventReaderAddress, defaultCheckBackInterval, isLastEventRequired)
 	if err != nil {
 		logger.Errorf(nil, "Error retrieving the latest monitoring publishEnd event from Splunk.", err)
 		return
 	}
 
-	t, err := time.Parse(DefaultTimestampFormat, event.Time)
+	t, err := time.Parse(defaultTimestampFormat, event.Time)
 	if err != nil {
 		logger.Errorf(nil, "Error parsing the last event's timestamp %v ", err)
 	}
@@ -63,10 +68,10 @@ func catchUP(eventReaderAddress string, keyAPI client.KeysAPI) {
 	m := int(finalDuration)
 	interval := fmt.Sprintf("%dm", m)
 
-	monitorTransactions(eventReaderAddress, keyAPI, interval)
+	monitorTransactions(eventReaderAddress, readEnabledKey, keyAPI, interval)
 }
 
-func monitorTransactions(eventReaderAddress string, keyApi client.KeysAPI, interval string) {
+func monitorTransactions(eventReaderAddress string, readEnabledKey string, keyApi client.KeysAPI, interval string) {
 
 	// retrieve all the entries for a particular content type
 	tids, err := getTransactions(eventReaderAddress, nil, interval)
@@ -115,7 +120,9 @@ func monitorTransactions(eventReaderAddress string, keyApi client.KeysAPI, inter
 			logger.ErrorEventWithUUID(tid.TransactionID, tid.UUID, "Error parsing timestamp %v ", err)
 		}
 
-		readEnabled := readEnabled(keyApi)
+		//TODO: check how many successful transactions are in 5/10 minutes in prod, how heavily would etcd be requested...
+		//would it handle so many requests?
+		readEnabled := readEnabled(keyApi,readEnabledKey)
 
 		completedTids = append(completedTids, completedTransactionEvent{tid.TransactionID, tid.UUID, tid.Duration, startTime, endTime, readEnabled})
 		logger.Infof(map[string]interface{}{
@@ -148,7 +155,7 @@ func fixSupersededTransactions(eventReaderAddress string, sortedCompletedTids co
 	}
 
 	// get all the uncompleted transactions for those uuids, that have started before our actual set
-	unprocessedTids, err := getTransactions(eventReaderAddress, uuids, "10m")
+	unprocessedTids, err := getTransactions(eventReaderAddress, uuids, defaultMonitoringInterval)
 	if err != nil {
 		logger.Errorf(nil, "Verification of possible superseded transactions has failed.", err)
 		return
@@ -222,11 +229,11 @@ func earlierTransaction(utid transactionEvent, ctid completedTransactionEvent) (
 }
 
 func computeDuration(startTime, endTime string) (time.Duration, error) {
-	et, err := time.Parse(DefaultTimestampFormat, endTime)
+	et, err := time.Parse(defaultTimestampFormat, endTime)
 	if err != nil {
 		return 0, err
 	}
-	st, err := time.Parse(DefaultTimestampFormat, startTime)
+	st, err := time.Parse(defaultTimestampFormat, startTime)
 	if err != nil {
 		return 0, err
 	}

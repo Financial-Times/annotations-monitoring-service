@@ -32,8 +32,7 @@ func main() {
 	})
 
 	eventReaderURL := app.String(cli.StringOpt{
-		Name: "event-reader-url",
-		//__splunk-event-reader/
+		Name:   "event-reader-url",
 		Value:  "http://localhost:8080/",
 		Desc:   "The address of the event reader application",
 		EnvVar: "EVENT_READER_URL",
@@ -44,6 +43,13 @@ func main() {
 		Value:  "http://127.0.0.1:4001",
 		Desc:   "The address of the etcd server",
 		EnvVar: "ETCD_URL",
+	})
+
+	etcdKey := app.String(cli.StringOpt{
+		Name:   "read-enabled-key",
+		Value:  "/ft/healthcheck-categories/read/enabled",
+		Desc:   "ETCD key that indicates if a cluster serves or not read traffic",
+		EnvVar: "READ_ENABLED_KEY",
 	})
 
 	port := app.String(cli.StringOpt{
@@ -68,7 +74,7 @@ func main() {
 		}()
 
 		keyAPI := configureETCDAPI(*etcdURL)
-		monitorAnnotationsFlow(*eventReaderURL, keyAPI)
+		monitorAnnotationsFlow(*eventReaderURL, *etcdKey, keyAPI)
 		waitForSignal()
 	}
 	err := app.Run(os.Args)

@@ -70,6 +70,7 @@ func getTransactions(eventReaderAddress string, uuids []string, interval string)
 			q.Add(uuidPathVar, uuid)
 		}
 	}
+	q.Add(intervalPathVar, interval)
 	req.URL.RawQuery = q.Encode()
 
 	resp, err := http.DefaultClient.Do(req)
