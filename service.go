@@ -2,13 +2,16 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/Financial-Times/go-logger"
+	"github.com/coreos/etcd/client"
+	"golang.org/x/net/context"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"sort"
+	"strconv"
 	"time"
-	"fmt"
 )
 
 const (
@@ -19,6 +22,27 @@ const (
 	lastEvent              = "SaveNeo4j"
 	endEvent               = "PublishEnd"
 )
+
+func readEnabled(kAPI client.KeysAPI) bool {
+	//TODO: check how many successful transactions are in 5 minutes in prod, how heavily would etcd be affected... would it handle so many requests?
+
+	//By default, the cluster will be considered as active. Consider inactive only if ETCD value confirms (failovers).
+	readEnabled := true
+
+	resp, err := kAPI.Get(context.Background(), "/ft/healthcheck-categories/read/enabled", nil)
+	if err != nil {
+		logger.Errorf(nil, "Couldn't determine if the cluster is active. ETCD key can't be read. Error %v", err)
+		return readEnabled
+	}
+
+	b, err := strconv.ParseBool(resp.Node.Value)
+	if err != nil {
+		logger.Errorf(nil, "Couldn't determine if the cluster is active. ETCD key can't be parsed. Error %v", err)
+		return readEnabled
+	}
+
+	return b
+}
 
 func getTransactions(urlStr string, uuids []string) (transactions, error) {
 
@@ -31,26 +55,38 @@ func getTransactions(urlStr string, uuids []string) (transactions, error) {
 	}
 
 	resp, err := http.DefaultClient.Do(req)
-
 	if err != nil {
-		logger.Errorf(nil, "error: %v", err)
+		logger.Errorf(map[string]interface{}{
+			"url":         req.Host + req.URL.Path,
+			"status code": resp.StatusCode,
+		}, "Failed to retrieve transaction.", err)
 		return nil, err
 	}
 	defer cleanUp(resp)
 
+	//TODO consider at least on retry?
 	if resp.StatusCode != http.StatusOK {
-		logger.Errorf(nil, "statuscode: %v", resp.StatusCode)
+		logger.Errorf(map[string]interface{}{
+			"url":         req.Host + req.URL.Path,
+			"status code": resp.StatusCode,
+		}, "Failed to retrieve transations")
 		//retry? threat status codes accordingly 500 -> retry; 404->nil; 200->parse and continue;
+		return nil, err
 	}
 
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		logger.Errorf(nil, "error: %v", err)
+		logger.Errorf(map[string]interface{}{
+			"url":         req.Host + req.URL.Path,
+			"status code": resp.StatusCode,
+		}, "Error parsing transaction body: %v", err)
+		return nil, err
 	}
 
 	var tids transactions
 	if err := json.Unmarshal(b, &tids); err != nil {
-		logger.Errorf(nil, "error: %v", err)
+		logger.Errorf(nil, "Error unmarshalling transaction log messages: %v", err)
+		return nil, err
 	}
 
 	return tids, nil
@@ -68,12 +104,13 @@ func cleanUp(resp *http.Response) {
 	}
 }
 
-func monitorTransactions(urlStr string) {
+func monitorTransactions(urlStr string, keyApi client.KeysAPI) {
 
 	// retrieve all the entries for a particular content type
 	tids, err := getTransactions(urlStr, nil)
 	if err != nil {
-		logger.Errorf(nil, "error: %v", err)
+		logger.Errorf(nil, "Monitoring transactions has failed.", err)
+		return
 	}
 
 	var completedTids completedTransactionEvents
@@ -90,82 +127,81 @@ func monitorTransactions(urlStr string) {
 			}
 
 			// find start or end event
-			if event.Event == startEvent { //PublishStart
+			if event.Event == startEvent {
 				startTime = event.Time
 			} else if event.Event == lastEvent {
 				endTime = event.Time
 			}
 
-			// find mapper event: if not valid, log it as successful
+			// find mapper event: if message is not valid, log it as successful PublishEnd event.
+			// use isValid string, to distinguish between missing and invalid events
 			if event.IsValid == "true" {
 				isValid = "true"
 			} else if event.IsValid == "false" {
 				isValid = "false"
 				endTime = event.Time
-				break
 			}
 		}
 
-		if !isAnnotationEvent {
+		//if it is not a completed and valid annotation transaction series: skip it
+		if !isAnnotationEvent || startTime == "" || endTime == "" || isValid == "" {
 			continue
 		}
 
-		//message not valid, but successfully terminated
-		if isValid == "false" { //what if no startTime, cause that's in a separate block? will the uuid part get it later on?
-			if startTime != "" {
-				completedTids = append(completedTids, completedTransactionEvent{tid.TransactionID, tid.UUID, tid.Duration, startTime, endTime})
-				logger.Infof(map[string]interface{}{
-					"event":            endEvent,
-					"uuid":             tid.UUID,
-					"startTime":        startTime,
-					"endTime":          endTime,
-					"transaction_id":   tid.TransactionID,
-					"read_enabled":     "true",
-					"monitoring_event": "true",
-					"isValid":          "false",
-					"content_type":     contentType,
-				}, "Transaction has finished")
-				continue
-			}
+		duration, err := calculateDuration(startTime, endTime)
+		if err != nil {
+			logger.ErrorEventWithUUID(tid.TransactionID, tid.UUID, "Error parsing timestamp %v ", err)
 		}
 
-		if isValid == "true" && endTime != "" && startTime != "" {
-			// TODO handle errors
-			et, _ := time.Parse(DefaultTimestampFormat, endTime)
-			st, _ := time.Parse(DefaultTimestampFormat, startTime)
-			duration := et.Sub(st)
+		readEnabled := readEnabled(keyApi)
 
-			completedTids = append(completedTids, completedTransactionEvent{tid.TransactionID, tid.UUID, tid.Duration, startTime, endTime})
-			logger.Infof(map[string]interface{}{
-				"event":            endEvent,
-				"transaction_id":   tid.TransactionID,
-				"uuid":             tid.UUID,
-				"startTime":        startTime,
-				"endTime":          endTime,
-				"duration":         fmt.Sprint(duration.Seconds()),
-				"content_type":     contentType,
-				"monitoring_event": "true",
-				"read_enabled":     "true"}, "Transaction has finished")
-		}
+		completedTids = append(completedTids, completedTransactionEvent{tid.TransactionID, tid.UUID, tid.Duration, startTime, endTime, readEnabled})
+		logger.Infof(map[string]interface{}{
+			"@time":                endTime,
+			"event":                endEvent,
+			"transaction_id":       tid.TransactionID,
+			"uuid":                 tid.UUID,
+			"startTime":            startTime,
+			"endTime":              endTime,
+			"transaction_duration": fmt.Sprint(duration.Seconds()),
+			"read_enabled":         strconv.FormatBool(readEnabled),
+			"monitoring_event":     "true",
+			"isValid":              isValid,
+			"content_type":         contentType,
+		}, "Transaction has finished")
 	}
 
 	sort.Sort(completedTids)
-	fixSuperseededTransactions(urlStr, completedTids)
+	fixSupersededTransactions(urlStr, completedTids)
 }
 
-func fixSuperseededTransactions(urlStr string, sortedCompletedTids completedTransactionEvents) {
+func calculateDuration(startTime, endTime string) (time.Duration, error) {
+	et, err := time.Parse(DefaultTimestampFormat, endTime)
+	if err != nil {
+		return 0, err
+	}
+	st, err := time.Parse(DefaultTimestampFormat, startTime)
+	if err != nil {
+		return 0, err
+	}
+	return et.Sub(st), nil
+}
 
-	// check all transactions for that uuid have happened before
+func fixSupersededTransactions(urlStr string, sortedCompletedTids completedTransactionEvents) {
+
+	// check all transactions for that uuid that happened before
+
+	// collect all the uuids that have successfully published in the recent transaction set
 	var uuids []string
 	for _, tid := range sortedCompletedTids {
 		uuids = append(uuids, tid.UUID)
 	}
 
-	// transactions that happened before...
+	// get all the uncompleted transactions for those uuids, that have started before our actual set
 	unprocessedTids, err := getTransactions(urlStr, uuids)
 	if err != nil {
-		//log error
-		logger.Errorf(nil, "error: %v", err)
+		logger.Errorf(nil, "Verification of possible superseded transactions has failed.", err)
+		return
 	}
 
 	// take all the completed transactions
@@ -183,20 +219,29 @@ func fixSuperseededTransactions(urlStr string, sortedCompletedTids completedTran
 
 				//check that it was a transaction that happened before the actual transaction
 				if b, t := earlierTransaction(utid, ctid); b {
-					// TODO handle errors
-					et, _ := time.Parse(DefaultTimestampFormat, ctid.EndTime)
-					st, _ := time.Parse(DefaultTimestampFormat, t)
-					duration := et.Sub(st)
+
+					duration, err := calculateDuration(t, ctid.EndTime)
+					if err != nil {
+						logger.ErrorEventWithUUID(utid.TransactionID, utid.UUID, "Error parsing timestamp %v ", err)
+					}
+
 					logger.Infof(map[string]interface{}{
-						"event":            endEvent,
-						"transaction_id":   utid.TransactionID,
-						"uuid":             utid.UUID,
-						"startTime":        t,
-						"endTime":          ctid.EndTime,
-						"content_type":     contentType,
-						"duration":         fmt.Sprint(duration.Seconds()),
-						"monitoring_event": "true",
-						"read_enabled":     "true"}, "Transaction has finished")
+						"@time":                ctid.EndTime,
+						"event":                endEvent,
+						"transaction_id":       utid.TransactionID,
+						"uuid":                 utid.UUID,
+						"startTime":            t,
+						"endTime":              ctid.EndTime,
+						"transaction_duration": fmt.Sprint(duration.Seconds()),
+						"monitoring_event":     "true",
+						// the value from the completed transaction will be used since it is impossible to detect
+						// whether the cluster was active or not, when the transaction has started
+						"read_enabled": strconv.FormatBool(ctid.ReadEnabled),
+						// isValid field will be missing, because we can't tell for sure if that tid was failing
+						// before it reached the mapper, of not. Also, we can't use the actual value for that tid, cause the article
+						// might have suffered validation changes by then.
+						"content_type": contentType,
+					}, "Transaction has finished")
 
 					//remove from unprocessedTransactionList
 					unprocessedTids = append(unprocessedTids[:i], unprocessedTids[i+1:]...)
@@ -226,16 +271,17 @@ func earlierTransaction(utid transactionEvent, ctid completedTransactionEvent) (
 	return isAnnotationEvent && isEarlier, startTime
 }
 
-func monitorAnnotationsFlow(url string) {
+func monitorAnnotationsFlow(url string, keyAPI client.KeysAPI) {
 	// every 5 minutes
-	ticker := time.NewTicker(5 * time.Minute)
+
+	ticker := time.NewTicker(1 * time.Minute)
 	quit := make(chan struct{})
 	go func() {
 		for {
 			select {
 			case <-ticker.C:
 				//query for last 10 minutes
-				monitorTransactions(url)
+				monitorTransactions(url, keyAPI)
 			case <-quit:
 				ticker.Stop()
 				return

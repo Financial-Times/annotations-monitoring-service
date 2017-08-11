@@ -4,6 +4,7 @@ import (
 	health "github.com/Financial-Times/go-fthealth/v1_1"
 	"github.com/Financial-Times/go-logger"
 	status "github.com/Financial-Times/service-status-go/httphandlers"
+	"github.com/coreos/etcd/client"
 	"github.com/jawher/mow.cli"
 	"net/http"
 	"os"
@@ -37,9 +38,16 @@ func main() {
 		EnvVar: "EVENT_READER_URL",
 	})
 
+	etcdURL := app.String(cli.StringOpt{
+		Name:   "etcd-url",
+		Value:  "http://127.0.0.1:4001",
+		Desc:   "The address of the etcd server",
+		EnvVar: "ETCD_URL",
+	})
+
 	port := app.String(cli.StringOpt{
 		Name:   "port",
-		Value:  "8080",
+		Value:  "8084",
 		Desc:   "Port to listen on",
 		EnvVar: "APP_PORT",
 	})
@@ -58,7 +66,8 @@ func main() {
 			serveAdminEndpoints(*appSystemCode, *appName, *port)
 		}()
 
-		monitorAnnotationsFlow(*eventReaderURL)
+		keyAPI := configureETCDAPI(*etcdURL)
+		monitorAnnotationsFlow(*eventReaderURL, keyAPI)
 		waitForSignal()
 	}
 	err := app.Run(os.Args)
@@ -66,6 +75,18 @@ func main() {
 		logger.Errorf(nil, "App could not start, error=[%s]\n", err)
 		return
 	}
+}
+
+func configureETCDAPI(etcdAddress string) client.KeysAPI {
+	cfg := client.Config{
+		Endpoints: []string{etcdAddress},
+	}
+
+	c, err := client.New(cfg)
+	if err != nil {
+		logger.FatalEvent("ETCD client couldn't be created: %v", err)
+	}
+	return client.NewKeysAPI(c)
 }
 
 func serveAdminEndpoints(appSystemCode string, appName string, port string) {
