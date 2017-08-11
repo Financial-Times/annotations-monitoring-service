@@ -64,7 +64,7 @@ func getTransactions(urlStr string, uuids []string) (transactions, error) {
 	}
 	defer cleanUp(resp)
 
-	//TODO consider at least on retry?
+	//TODO consider at least one retry?
 	if resp.StatusCode != http.StatusOK {
 		logger.Errorf(map[string]interface{}{
 			"url":         req.Host + req.URL.Path,
@@ -271,10 +271,15 @@ func earlierTransaction(utid transactionEvent, ctid completedTransactionEvent) (
 	return isAnnotationEvent && isEarlier, startTime
 }
 
+func catchUP() {
+	//TO implement
+}
+
 func monitorAnnotationsFlow(url string, keyAPI client.KeysAPI) {
 	// every 5 minutes
+	catchUP()
 
-	ticker := time.NewTicker(1 * time.Minute)
+	ticker := time.NewTicker(5 * time.Minute)
 	quit := make(chan struct{})
 	go func() {
 		for {
