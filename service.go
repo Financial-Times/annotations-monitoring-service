@@ -127,6 +127,7 @@ func monitorTransactions(eventReaderAddress string, readEnabledKey string, keyAp
 		completedTids = append(completedTids, completedTransactionEvent{tid.TransactionID, tid.UUID, tid.Duration, startTime, endTime, readEnabled})
 		logger.Infof(map[string]interface{}{
 			"@time":                endTime,
+			"logTime":		time.Now().Format(defaultTimestampFormat),
 			"event":                endEvent,
 			"transaction_id":       tid.TransactionID,
 			"uuid":                 tid.UUID,
@@ -184,6 +185,7 @@ func fixSupersededTransactions(eventReaderAddress string, sortedCompletedTids co
 
 					logger.Infof(map[string]interface{}{
 						"@time":                ctid.EndTime,
+						"logTime":		time.Now().Format(defaultTimestampFormat),
 						"event":                endEvent,
 						"transaction_id":       utid.TransactionID,
 						"uuid":                 utid.UUID,
