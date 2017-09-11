@@ -4,7 +4,6 @@ import (
 	health "github.com/Financial-Times/go-fthealth/v1_1"
 	"github.com/Financial-Times/go-logger"
 	status "github.com/Financial-Times/service-status-go/httphandlers"
-	"github.com/coreos/etcd/client"
 	"github.com/jawher/mow.cli"
 	"net/http"
 	"os"
@@ -13,6 +12,9 @@ import (
 )
 
 const appDescription = "Service responsible for monitoring annotations publishes."
+
+// TODO: this needs to be linked to the monitoring service after refactoring
+var mc monitoredClusterService
 
 func main() {
 	app := cli.App("annotations-monitoring-service", appDescription)
@@ -38,25 +40,23 @@ func main() {
 		EnvVar: "EVENT_READER_URL",
 	})
 
-	etcdURL := app.String(cli.StringOpt{
-		Name:   "etcd-url",
-		Value:  "http://127.0.0.1:4001",
-		Desc:   "The address of the etcd server",
-		EnvVar: "ETCD_URL",
-	})
-
-	etcdKey := app.String(cli.StringOpt{
-		Name:   "read-enabled-key",
-		Value:  "/ft/healthcheck-categories/read/enabled",
-		Desc:   "ETCD key that indicates if a cluster serves or not read traffic",
-		EnvVar: "READ_ENABLED_KEY",
-	})
-
 	port := app.String(cli.StringOpt{
 		Name:   "port",
 		Value:  "8084",
 		Desc:   "Port to listen on",
 		EnvVar: "APP_PORT",
+	})
+
+	readDNS := app.String(cli.StringOpt{
+		Name:   "readDNS",
+		Desc:   "High level CNAME of the host that serves read traffic",
+		EnvVar: "READ_ADDRESS",
+	})
+
+	environmentTag := app.String(cli.StringOpt{
+		Name:   "environmentTag",
+		Desc:   "Tag of the environment where the application is running",
+		EnvVar: "ENVIRONMENT_TAG",
 	})
 
 	logger.InitDefaultLogger(*appName)
@@ -73,8 +73,8 @@ func main() {
 			serveAdminEndpoints(*appSystemCode, *appName, *port)
 		}()
 
-		keyAPI := configureETCDAPI(*etcdURL)
-		monitorAnnotationsFlow(*eventReaderURL, *etcdKey, keyAPI)
+		mc = newMonitoredClusterService(*readDNS, *environmentTag)
+		monitorAnnotationsFlow(*eventReaderURL)
 		waitForSignal()
 	}
 	err := app.Run(os.Args)
@@ -82,18 +82,6 @@ func main() {
 		logger.Errorf(nil, "App could not start, error=[%s]\n", err)
 		return
 	}
-}
-
-func configureETCDAPI(etcdAddress string) client.KeysAPI {
-	cfg := client.Config{
-		Endpoints: []string{etcdAddress},
-	}
-
-	c, err := client.New(cfg)
-	if err != nil {
-		logger.FatalEvent("ETCD client couldn't be created: %v", err)
-	}
-	return client.NewKeysAPI(c)
 }
 
 func serveAdminEndpoints(appSystemCode string, appName string, port string) {

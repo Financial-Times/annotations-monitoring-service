@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/Financial-Times/go-logger"
-	"github.com/coreos/etcd/client"
 	"sort"
 	"strconv"
 	"time"
@@ -20,9 +19,9 @@ const (
 	isLastEventRequired       = true
 )
 
-func monitorAnnotationsFlow(eventReaderAddress string, readEnabledKey string, keyAPI client.KeysAPI) {
+func monitorAnnotationsFlow(eventReaderAddress string) {
 
-	catchUP(eventReaderAddress, readEnabledKey, keyAPI)
+	catchUP(eventReaderAddress)
 
 	// check transations every 5 minutes
 	ticker := time.NewTicker(5 * time.Minute)
@@ -35,7 +34,7 @@ func monitorAnnotationsFlow(eventReaderAddress string, readEnabledKey string, ke
 				// TODO add validation for interval
 				// TODO change code, so that the normal monitoring event would look back from the LATEST PUBLISHEND event
 				// - take the code from the catchUP method - ... refactor
-				monitorTransactions(eventReaderAddress, readEnabledKey, keyAPI, defaultMonitoringInterval)
+				monitorTransactions(eventReaderAddress, defaultMonitoringInterval)
 			case <-quit:
 				ticker.Stop()
 				return
@@ -44,7 +43,7 @@ func monitorAnnotationsFlow(eventReaderAddress string, readEnabledKey string, ke
 	}()
 }
 
-func catchUP(eventReaderAddress string, readEnabledKey string, keyAPI client.KeysAPI) {
+func catchUP(eventReaderAddress string) {
 
 	event, err := getLastEvent(eventReaderAddress, defaultCheckBackInterval, isLastEventRequired)
 	if err != nil {
@@ -59,6 +58,7 @@ func catchUP(eventReaderAddress string, readEnabledKey string, keyAPI client.Key
 
 	//compute the duration since the last event was logged
 	//consider that value - 5 min => to keep the overlapping period
+	//TODO: asses the usage of variable t (in case of error)
 	duration := time.Since(t)
 	finalDuration := duration.Minutes() + 5
 	if finalDuration < 10 {
@@ -68,10 +68,10 @@ func catchUP(eventReaderAddress string, readEnabledKey string, keyAPI client.Key
 	m := int(finalDuration)
 	interval := fmt.Sprintf("%dm", m)
 
-	monitorTransactions(eventReaderAddress, readEnabledKey, keyAPI, interval)
+	monitorTransactions(eventReaderAddress, interval)
 }
 
-func monitorTransactions(eventReaderAddress string, readEnabledKey string, keyApi client.KeysAPI, interval string) {
+func monitorTransactions(eventReaderAddress string, interval string) {
 
 	// retrieve all the entries for a particular content type
 	tids, err := getTransactions(eventReaderAddress, nil, interval)
@@ -122,7 +122,11 @@ func monitorTransactions(eventReaderAddress string, readEnabledKey string, keyAp
 
 		//TODO: check how many successful transactions are in 5/10 minutes in prod, how heavily would etcd be requested...
 		//would it handle so many requests?
-		readEnabled := readEnabled(keyApi,readEnabledKey)
+		readEnabled, err := mc.IsActive()
+		if err != nil {
+			logger.Errorf(nil, "Monitoring can not continue because of error: %v", err.Error())
+			return
+		}
 
 		completedTids = append(completedTids, completedTransactionEvent{tid.TransactionID, tid.UUID, tid.Duration, startTime, endTime, readEnabled})
 		logger.Infof(map[string]interface{}{
