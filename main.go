@@ -13,6 +13,9 @@ import (
 
 const appDescription = "Service responsible for monitoring annotations publishes."
 
+// TODO: this needs to be linked to the monitoring service after refactoring
+var mc monitoredClusterService
+
 func main() {
 	app := cli.App("annotations-monitoring-service", appDescription)
 
@@ -70,7 +73,8 @@ func main() {
 			serveAdminEndpoints(*appSystemCode, *appName, *port)
 		}()
 
-		monitorAnnotationsFlow(*eventReaderURL, *readDNS, *environmentTag)
+		mc = newMonitoredClusterService(*readDNS, *environmentTag)
+		monitorAnnotationsFlow(*eventReaderURL)
 		waitForSignal()
 	}
 	err := app.Run(os.Args)

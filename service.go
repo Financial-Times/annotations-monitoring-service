@@ -19,9 +19,9 @@ const (
 	isLastEventRequired       = true
 )
 
-func monitorAnnotationsFlow(eventReaderAddress string, readDNS string, environmentTag string) {
+func monitorAnnotationsFlow(eventReaderAddress string) {
 
-	catchUP(eventReaderAddress, readDNS, environmentTag)
+	catchUP(eventReaderAddress)
 
 	// check transations every 5 minutes
 	ticker := time.NewTicker(5 * time.Minute)
@@ -34,7 +34,7 @@ func monitorAnnotationsFlow(eventReaderAddress string, readDNS string, environme
 				// TODO add validation for interval
 				// TODO change code, so that the normal monitoring event would look back from the LATEST PUBLISHEND event
 				// - take the code from the catchUP method - ... refactor
-				monitorTransactions(eventReaderAddress, defaultMonitoringInterval, readDNS, environmentTag)
+				monitorTransactions(eventReaderAddress, defaultMonitoringInterval)
 			case <-quit:
 				ticker.Stop()
 				return
@@ -43,7 +43,7 @@ func monitorAnnotationsFlow(eventReaderAddress string, readDNS string, environme
 	}()
 }
 
-func catchUP(eventReaderAddress string, readDNS string, environmentTag string) {
+func catchUP(eventReaderAddress string) {
 
 	event, err := getLastEvent(eventReaderAddress, defaultCheckBackInterval, isLastEventRequired)
 	if err != nil {
@@ -68,10 +68,10 @@ func catchUP(eventReaderAddress string, readDNS string, environmentTag string) {
 	m := int(finalDuration)
 	interval := fmt.Sprintf("%dm", m)
 
-	monitorTransactions(eventReaderAddress, interval, readDNS, environmentTag)
+	monitorTransactions(eventReaderAddress, interval)
 }
 
-func monitorTransactions(eventReaderAddress string, interval string, readDNS string, environmentTag string) {
+func monitorTransactions(eventReaderAddress string, interval string) {
 
 	// retrieve all the entries for a particular content type
 	tids, err := getTransactions(eventReaderAddress, nil, interval)
@@ -122,7 +122,7 @@ func monitorTransactions(eventReaderAddress string, interval string, readDNS str
 
 		//TODO: check how many successful transactions are in 5/10 minutes in prod, how heavily would etcd be requested...
 		//would it handle so many requests?
-		readEnabled, err := isClusterActive(readDNS, environmentTag)
+		readEnabled, err := mc.IsActive()
 		if err != nil {
 			logger.Errorf(nil, "Monitoring can not continue because of error: %v", err.Error())
 			return
