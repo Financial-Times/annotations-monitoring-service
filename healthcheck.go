@@ -1,45 +1,79 @@
 package main
 
 import (
+	"fmt"
 	health "github.com/Financial-Times/go-fthealth/v1_1"
 	"github.com/Financial-Times/service-status-go/gtg"
+	"io/ioutil"
+	"net/http"
+	"time"
 )
 
-const healthPath = "/__health"
+const (
+	healthPath = "/__health"
+	gtgPath    = "/__gtg"
+)
 
 type healthService struct {
-	config *healthConfig
-	checks []health.Check
+	config     *healthConfig
+	checks     []health.Check
+	httpClient http.Client
 }
 
 type healthConfig struct {
-	appSystemCode string
-	appName       string
-	port          string
+	appSystemCode  string
+	appName        string
+	port           string
+	eventReaderUrl string
 }
 
 func newHealthService(config *healthConfig) *healthService {
 	service := &healthService{config: config}
 	service.checks = []health.Check{
-		service.sampleCheck(),
+		service.eventReaderCheck(),
 	}
+	service.httpClient = http.Client{
+		Timeout: time.Duration(10 * time.Second),
+	}
+
 	return service
 }
 
-func (service *healthService) sampleCheck() health.Check {
+func (service *healthService) eventReaderCheck() health.Check {
 	return health.Check{
-		BusinessImpact:   "Sample healthcheck has no impact",
-		Name:             "Sample healthcheck",
+		BusinessImpact:   "Event reader is not available, the success of an annotation publish can't be determined.",
+		Name:             "Event reader availability healthcheck",
 		PanicGuide:       "https://dewey.ft.com/annotations-monitoring-service.html",
 		Severity:         1,
-		TechnicalSummary: "Sample healthcheck has no technical details",
-		Checker:          service.sampleChecker,
+		TechnicalSummary: "Splunk event reader is not reachable.",
+		Checker:          service.eventReaderReachabilityChecker,
 	}
 }
 
-func (service *healthService) sampleChecker() (string, error) {
-	return "Sample is healthy", nil
+func (service *healthService) eventReaderReachabilityChecker() (string, error) {
 
+	req, err := http.NewRequest("GET", service.config.eventReaderUrl+gtgPath, nil)
+	if err != nil {
+		return fmt.Sprintf("Error creating requests for url=%s", req.URL.String()), err
+	}
+
+	resp, err := service.httpClient.Do(req)
+	if err != nil {
+		return fmt.Sprintf("Error executing requests for url=%s", req.URL.String()), err
+	}
+
+	defer cleanUp(resp)
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Sprintf("Connecting to %s was not successful. Status: %ds", req.URL.String(), resp.StatusCode), err
+	}
+
+	_, err = ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Sprintf("Could not parse payload from response for url=%s", req.URL.String()), err
+	}
+
+	return "Splunk event reader is healthy", nil
 }
 
 func (service *healthService) gtgCheck() gtg.Status {

@@ -9,10 +9,10 @@
 			"revisionTime": "2017-05-25T09:50:41Z"
 		},
 		{
-			"checksumSHA1": "JJe6UjgSPT+Ey4uVdIHMjGSK/E0=",
+			"checksumSHA1": "R32X8CuDAJV1JimomUEh9SFmc8s=",
 			"path": "github.com/Financial-Times/go-logger",
-			"revision": "636c5a35d7b65a79e76f74deb0df3c079b8a54e6",
-			"revisionTime": "2017-08-22T08:43:40Z"
+			"revision": "83fc3e64dc5506fdb4e56b704949d157a121c76c",
+			"revisionTime": "2017-09-14T08:19:45Z"
 		},
 		{
 			"checksumSHA1": "fqpohN7Qp2qj7TLMbUxh/cK4oH0=",
@@ -33,48 +33,6 @@
 			"revisionTime": "2016-03-23T11:15:42Z"
 		},
 		{
-			"checksumSHA1": "cT6+XPBZiXsFbb7cXT6AYNrZyuM=",
-			"path": "github.com/Sirupsen/logrus",
-			"revision": "3f603f494d61c73457fb234161d8982b9f0f0b71",
-			"revisionTime": "2017-02-07T18:34:08Z"
-		},
-		{
-			"checksumSHA1": "Lglgc8iIRhqbqd8fpAZKpo/eqeY=",
-			"path": "github.com/Sirupsen/logrus/hooks/test",
-			"revision": "3f603f494d61c73457fb234161d8982b9f0f0b71",
-			"revisionTime": "2017-02-07T18:34:08Z"
-		},
-		{
-			"checksumSHA1": "Zgqp9pp3G4cSZbepa6tzhNeHZOI=",
-			"path": "github.com/coreos/etcd/client",
-			"revision": "af7d0510190f2de70e2ef7d9a2fd5bf7bc89b917",
-			"revisionTime": "2017-05-06T06:31:59Z"
-		},
-		{
-			"checksumSHA1": "mKIXx1kDwmVmdIpZ3pJtRBuUKso=",
-			"path": "github.com/coreos/etcd/pkg/pathutil",
-			"revision": "af7d0510190f2de70e2ef7d9a2fd5bf7bc89b917",
-			"revisionTime": "2017-05-06T06:31:59Z"
-		},
-		{
-			"checksumSHA1": "gx1gJIMU6T0UNQ0bPZ/drQ8cpCI=",
-			"path": "github.com/coreos/etcd/pkg/types",
-			"revision": "af7d0510190f2de70e2ef7d9a2fd5bf7bc89b917",
-			"revisionTime": "2017-05-06T06:31:59Z"
-		},
-		{
-			"checksumSHA1": "6pp6Xsm0EFoi5iVBr+cXbrF5raw=",
-			"path": "github.com/coreos/etcd/version",
-			"revision": "af7d0510190f2de70e2ef7d9a2fd5bf7bc89b917",
-			"revisionTime": "2017-05-06T06:31:59Z"
-		},
-		{
-			"checksumSHA1": "nux9tCYmTA5bOCVODF3Rqzcu60U=",
-			"path": "github.com/coreos/go-semver/semver",
-			"revision": "5e3acbb5668c4c3deb4842615c4098eb61fb6b1e",
-			"revisionTime": "2017-02-09T20:17:57Z"
-		},
-		{
 			"checksumSHA1": "tUGxc7rfX0cmhOOUDhMuAZ9rWsA=",
 			"path": "github.com/hashicorp/go-version",
 			"revision": "03c5bf6be031b6dd45afec16b1cf94fc8938bc77",
@@ -87,22 +45,34 @@
 			"revisionTime": "2016-11-23T22:54:47Z"
 		},
 		{
-			"checksumSHA1": "SubpTLnurFt1lvW8AftpgpA50go=",
-			"path": "github.com/ugorji/go/codec",
-			"revision": "5cd0f2b3b6cca8e3a0a4101821e41a73cb59bed6",
-			"revisionTime": "2016-08-25T15:51:36Z"
+			"checksumSHA1": "BYvROBsiyAXK4sq6yhDe8RgT4LM=",
+			"path": "github.com/sirupsen/logrus",
+			"revision": "89742aefa4b206dcf400792f3bd35b542998eb3b",
+			"revisionTime": "2017-08-22T13:27:46Z"
 		},
 		{
-			"checksumSHA1": "Y+HGqEkYM15ir+J93MEaHdyFy0c=",
-			"path": "golang.org/x/net/context",
-			"revision": "236b8f043b920452504e263bc21d354427127473",
-			"revisionTime": "2017-02-06T03:21:01Z"
+			"checksumSHA1": "Kt+BhrXMyYvOc9TGiBVOSNn6wcc=",
+			"path": "github.com/sirupsen/logrus/hooks/test",
+			"revision": "89742aefa4b206dcf400792f3bd35b542998eb3b",
+			"revisionTime": "2017-08-22T13:27:46Z"
+		},
+		{
+			"checksumSHA1": "nqWNlnMmVpt628zzvyo6Yv2CX5Q=",
+			"path": "golang.org/x/crypto/ssh/terminal",
+			"revision": "faadfbdc035307d901e69eea569f5dda451a3ee3",
+			"revisionTime": "2017-09-12T19:17:24Z"
 		},
 		{
 			"checksumSHA1": "uTQtOqR0ePMMcvuvAIksiIZxhqU=",
 			"path": "golang.org/x/sys/unix",
 			"revision": "7a6e5648d140666db5d920909e082ca00a87ba2c",
 			"revisionTime": "2017-02-01T04:15:14Z"
+		},
+		{
+			"checksumSHA1": "pBPFzDGt3AVSRffB7ffiUnruFUk=",
+			"path": "golang.org/x/sys/windows",
+			"revision": "062cd7e4e68206d8bab9b18396626e855c992658",
+			"revisionTime": "2017-09-12T16:19:26Z"
 		}
 	],
 	"rootPath": "github.com/Financial-Times/annotations-monitoring-service"

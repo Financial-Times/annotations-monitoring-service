@@ -28,7 +28,7 @@ func getLastEvent(eventReaderAddress string, interval string, lastEvent bool) (p
 		logger.Errorf(map[string]interface{}{
 			"url":         req.URL.String(),
 			"status code": resp.StatusCode,
-		}, "Failed to retrieve latest log event.", err)
+		}, err, "Failed to retrieve latest log event.")
 		return publishEvent{}, err
 	}
 	defer cleanUp(resp)
@@ -38,7 +38,7 @@ func getLastEvent(eventReaderAddress string, interval string, lastEvent bool) (p
 		logger.Errorf(map[string]interface{}{
 			"url":         req.URL.String(),
 			"status code": resp.StatusCode,
-		}, "Failed to retrieve latest log event")
+		}, nil, "Failed to retrieve latest log event")
 		//retry? threat status codes accordingly 500 -> retry; 404->nil; 200->parse and continue;
 		return publishEvent{}, err
 	}
@@ -48,13 +48,13 @@ func getLastEvent(eventReaderAddress string, interval string, lastEvent bool) (p
 		logger.Errorf(map[string]interface{}{
 			"url":         req.URL.String(),
 			"status code": resp.StatusCode,
-		}, "Error parsing transaction body: %v", err)
+		}, err, "Error parsing transaction body")
 		return publishEvent{}, err
 	}
 
 	var event publishEvent
 	if err := json.Unmarshal(b, &event); err != nil {
-		logger.Errorf(nil, "Error unmarshalling latest publish event message: %v", err)
+		logger.Errorf(nil, err, "Error unmarshalling latest publish event message")
 		return publishEvent{}, err
 	}
 
@@ -78,7 +78,7 @@ func getTransactions(eventReaderAddress string, uuids []string, interval string)
 		logger.Errorf(map[string]interface{}{
 			"url":         req.URL.String(),
 			"status code": resp.StatusCode,
-		}, "Failed to retrieve transaction.", err)
+		}, err, "Failed to retrieve transaction.")
 		return nil, err
 	}
 	defer cleanUp(resp)
@@ -88,7 +88,7 @@ func getTransactions(eventReaderAddress string, uuids []string, interval string)
 		logger.Errorf(map[string]interface{}{
 			"url":         req.URL.String(),
 			"status code": resp.StatusCode,
-		}, "Failed to retrieve transations")
+		}, nil, "Failed to retrieve transations")
 		//retry? threat status codes accordingly 500 -> retry; 404->nil; 200->parse and continue;
 		return nil, err
 	}
@@ -98,13 +98,13 @@ func getTransactions(eventReaderAddress string, uuids []string, interval string)
 		logger.Errorf(map[string]interface{}{
 			"url":         req.URL.String(),
 			"status code": resp.StatusCode,
-		}, "Error parsing transaction body: %v", err)
+		}, err, "Error parsing transaction body")
 		return nil, err
 	}
 
 	var tids transactions
 	if err := json.Unmarshal(b, &tids); err != nil {
-		logger.Errorf(nil, "Error unmarshalling transaction log messages: %v", err)
+		logger.Errorf(nil, err, "Error unmarshalling transaction log messages")
 		return nil, err
 	}
 

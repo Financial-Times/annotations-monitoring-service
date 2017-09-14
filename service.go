@@ -3,29 +3,36 @@ package main
 import (
 	"fmt"
 	"github.com/Financial-Times/go-logger"
-	"github.com/coreos/etcd/client"
 	"sort"
-	"strconv"
 	"time"
 )
 
 const (
-	contentType               = "Annotations"
 	defaultTimestampFormat    = time.RFC3339
+	isLastEventRequired       = true
+	contentType               = "Annotations"
 	startEvent                = "PublishStart"
 	lastEvent                 = "SaveNeo4j"
 	endEvent                  = "PublishEnd"
 	defaultCheckBackInterval  = "6h"
 	defaultMonitoringInterval = "10m"
-	isLastEventRequired       = true
+	defaultCheckFrequency     = 5
 )
 
-func monitorAnnotationsFlow(eventReaderAddress string, readEnabledKey string, keyAPI client.KeysAPI) {
+type MonitoringService interface {
+	StartMonitoring()
+}
 
-	catchUP(eventReaderAddress, readEnabledKey, keyAPI)
+type AnnotationsMonitoringService struct {
+	eventReaderURL string
+}
 
-	// check transations every 5 minutes
-	ticker := time.NewTicker(5 * time.Minute)
+func (s AnnotationsMonitoringService) StartMonitoring() {
+
+	s.catchUP()
+
+	// check transactions every 5 minutes
+	ticker := time.NewTicker(defaultCheckFrequency * time.Minute)
 	quit := make(chan struct{})
 	go func() {
 		for {
@@ -35,7 +42,7 @@ func monitorAnnotationsFlow(eventReaderAddress string, readEnabledKey string, ke
 				// TODO add validation for interval
 				// TODO change code, so that the normal monitoring event would look back from the LATEST PUBLISHEND event
 				// - take the code from the catchUP method - ... refactor
-				monitorTransactions(eventReaderAddress, readEnabledKey, keyAPI, defaultMonitoringInterval)
+				s.monitorTransactions(defaultMonitoringInterval)
 			case <-quit:
 				ticker.Stop()
 				return
@@ -44,17 +51,17 @@ func monitorAnnotationsFlow(eventReaderAddress string, readEnabledKey string, ke
 	}()
 }
 
-func catchUP(eventReaderAddress string, readEnabledKey string, keyAPI client.KeysAPI) {
+func (s AnnotationsMonitoringService) catchUP() {
 
-	event, err := getLastEvent(eventReaderAddress, defaultCheckBackInterval, isLastEventRequired)
+	event, err := getLastEvent(s.eventReaderURL, defaultCheckBackInterval, isLastEventRequired)
 	if err != nil {
-		logger.Errorf(nil, "Error retrieving the latest monitoring publishEnd event from Splunk.", err)
+		logger.Errorf(nil, err, "Error retrieving the latest monitoring publishEnd event from Splunk.")
 		return
 	}
 
 	t, err := time.Parse(defaultTimestampFormat, event.Time)
 	if err != nil {
-		logger.Errorf(nil, "Error parsing the last event's timestamp %v ", err)
+		logger.Errorf(nil, err, "Error parsing the last event's timestamp.")
 	}
 
 	//compute the duration since the last event was logged
@@ -68,15 +75,15 @@ func catchUP(eventReaderAddress string, readEnabledKey string, keyAPI client.Key
 	m := int(finalDuration)
 	interval := fmt.Sprintf("%dm", m)
 
-	monitorTransactions(eventReaderAddress, readEnabledKey, keyAPI, interval)
+	s.monitorTransactions(interval)
 }
 
-func monitorTransactions(eventReaderAddress string, readEnabledKey string, keyApi client.KeysAPI, interval string) {
+func (s AnnotationsMonitoringService) monitorTransactions(interval string) {
 
 	// retrieve all the entries for a particular content type
-	tids, err := getTransactions(eventReaderAddress, nil, interval)
+	tids, err := getTransactions(s.eventReaderURL, nil, interval)
 	if err != nil {
-		logger.Errorf(nil, "Monitoring transactions has failed.", err)
+		logger.Errorf(nil, err, "Monitoring transactions has failed.")
 		return
 	}
 
@@ -117,24 +124,20 @@ func monitorTransactions(eventReaderAddress string, readEnabledKey string, keyAp
 
 		duration, err := computeDuration(startTime, endTime)
 		if err != nil {
-			logger.ErrorEventWithUUID(tid.TransactionID, tid.UUID, "Error parsing timestamp %v ", err)
+			//TODO check whether this was intended or not
+			logger.NewEntry(tid.TransactionID).WithUUID(tid.UUID).WithError(err).Error("Error parsing timestamp")
 		}
 
-		//TODO: check how many successful transactions are in 5/10 minutes in prod, how heavily would etcd be requested...
-		//would it handle so many requests?
-		readEnabled := readEnabled(keyApi,readEnabledKey)
-
-		completedTids = append(completedTids, completedTransactionEvent{tid.TransactionID, tid.UUID, tid.Duration, startTime, endTime, readEnabled})
+		completedTids = append(completedTids, completedTransactionEvent{tid.TransactionID, tid.UUID, tid.Duration, startTime, endTime})
 		logger.Infof(map[string]interface{}{
 			"@time":                endTime,
-			"logTime":		time.Now().Format(defaultTimestampFormat),
+			"logTime":              time.Now().Format(defaultTimestampFormat),
 			"event":                endEvent,
 			"transaction_id":       tid.TransactionID,
 			"uuid":                 tid.UUID,
 			"startTime":            startTime,
 			"endTime":              endTime,
 			"transaction_duration": fmt.Sprint(duration.Seconds()),
-			"read_enabled":         strconv.FormatBool(readEnabled),
 			"monitoring_event":     "true",
 			"isValid":              isValid,
 			"content_type":         contentType,
@@ -142,7 +145,7 @@ func monitorTransactions(eventReaderAddress string, readEnabledKey string, keyAp
 	}
 
 	sort.Sort(completedTids)
-	fixSupersededTransactions(eventReaderAddress, completedTids)
+	fixSupersededTransactions(s.eventReaderURL, completedTids)
 }
 
 func fixSupersededTransactions(eventReaderAddress string, sortedCompletedTids completedTransactionEvents) {
@@ -158,7 +161,7 @@ func fixSupersededTransactions(eventReaderAddress string, sortedCompletedTids co
 	// get all the uncompleted transactions for those uuids, that have started before our actual set
 	unprocessedTids, err := getTransactions(eventReaderAddress, uuids, defaultMonitoringInterval)
 	if err != nil {
-		logger.Errorf(nil, "Verification of possible superseded transactions has failed.", err)
+		logger.Errorf(nil, err, "Verification of possible superseded transactions has failed.")
 		return
 	}
 
@@ -180,12 +183,13 @@ func fixSupersededTransactions(eventReaderAddress string, sortedCompletedTids co
 
 					duration, err := computeDuration(t, ctid.EndTime)
 					if err != nil {
-						logger.ErrorEventWithUUID(utid.TransactionID, utid.UUID, "Error parsing timestamp %v ", err)
+						//TODO check whether this was intended or not
+						logger.NewEntry(utid.TransactionID).WithUUID(utid.UUID).WithError(err).Error("Error parsing timestamp")
 					}
 
 					logger.Infof(map[string]interface{}{
 						"@time":                ctid.EndTime,
-						"logTime":		time.Now().Format(defaultTimestampFormat),
+						"logTime":              time.Now().Format(defaultTimestampFormat),
 						"event":                endEvent,
 						"transaction_id":       utid.TransactionID,
 						"uuid":                 utid.UUID,
@@ -193,9 +197,6 @@ func fixSupersededTransactions(eventReaderAddress string, sortedCompletedTids co
 						"endTime":              ctid.EndTime,
 						"transaction_duration": fmt.Sprint(duration.Seconds()),
 						"monitoring_event":     "true",
-						// the value from the completed transaction will be used since it is impossible to detect
-						// whether the cluster was active or not, when the transaction has started
-						"read_enabled": strconv.FormatBool(ctid.ReadEnabled),
 						// isValid field will be missing, because we can't tell for sure if that tid was failing
 						// before it reached the mapper, of not. Also, we can't use the actual value for that tid, cause the article
 						// might have suffered validation changes by then.

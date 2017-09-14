@@ -34,7 +34,6 @@ type completedTransactionEvent struct {
 	Duration      string
 	StartTime     string
 	EndTime       string
-	ReadEnabled   bool
 }
 
 type completedTransactionEvents []completedTransactionEvent

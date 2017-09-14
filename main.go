@@ -4,12 +4,12 @@ import (
 	health "github.com/Financial-Times/go-fthealth/v1_1"
 	"github.com/Financial-Times/go-logger"
 	status "github.com/Financial-Times/service-status-go/httphandlers"
-	"github.com/coreos/etcd/client"
 	"github.com/jawher/mow.cli"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 )
 
 const appDescription = "Service responsible for monitoring annotations publishes."
@@ -38,20 +38,6 @@ func main() {
 		EnvVar: "EVENT_READER_URL",
 	})
 
-	etcdURL := app.String(cli.StringOpt{
-		Name:   "etcd-url",
-		Value:  "http://127.0.0.1:4001",
-		Desc:   "The address of the etcd server",
-		EnvVar: "ETCD_URL",
-	})
-
-	etcdKey := app.String(cli.StringOpt{
-		Name:   "read-enabled-key",
-		Value:  "/ft/healthcheck-categories/read/enabled",
-		Desc:   "ETCD key that indicates if a cluster serves or not read traffic",
-		EnvVar: "READ_ENABLED_KEY",
-	})
-
 	port := app.String(cli.StringOpt{
 		Name:   "port",
 		Value:  "8084",
@@ -69,35 +55,27 @@ func main() {
 			"Port":        *port,
 		}, "")
 
+		as := AnnotationsMonitoringService{
+			eventReaderURL: *eventReaderURL,
+		}
+
 		go func() {
-			serveAdminEndpoints(*appSystemCode, *appName, *port)
+			serveAdminEndpoints(*appSystemCode, *appName, *port, *eventReaderURL)
 		}()
 
-		keyAPI := configureETCDAPI(*etcdURL)
-		monitorAnnotationsFlow(*eventReaderURL, *etcdKey, keyAPI)
+		as.StartMonitoring()
+
 		waitForSignal()
 	}
 	err := app.Run(os.Args)
 	if err != nil {
-		logger.Errorf(nil, "App could not start, error=[%s]\n", err)
+		logger.Errorf(nil, err, "App could not start")
 		return
 	}
 }
 
-func configureETCDAPI(etcdAddress string) client.KeysAPI {
-	cfg := client.Config{
-		Endpoints: []string{etcdAddress},
-	}
-
-	c, err := client.New(cfg)
-	if err != nil {
-		logger.FatalEvent("ETCD client couldn't be created: %v", err)
-	}
-	return client.NewKeysAPI(c)
-}
-
-func serveAdminEndpoints(appSystemCode string, appName string, port string) {
-	healthService := newHealthService(&healthConfig{appSystemCode: appSystemCode, appName: appName, port: port})
+func serveAdminEndpoints(appSystemCode, appName, port, eventReaderUrl string) {
+	healthService := newHealthService(&healthConfig{appSystemCode, appName, port, eventReaderUrl})
 
 	serveMux := http.NewServeMux()
 
@@ -106,8 +84,15 @@ func serveAdminEndpoints(appSystemCode string, appName string, port string) {
 	serveMux.HandleFunc(status.GTGPath, status.NewGoodToGoHandler(healthService.gtgCheck))
 	serveMux.HandleFunc(status.BuildInfoPath, status.BuildInfoHandler)
 
-	if err := http.ListenAndServe(":"+port, serveMux); err != nil {
-		logger.FatalEvent("Unable to start: %v", err)
+	server := http.Server{
+		Addr:         ":" + port,
+		Handler:      serveMux,
+		ReadTimeout:  time.Duration(60 * time.Second),
+		WriteTimeout: time.Duration(60 * time.Second),
+	}
+
+	if err := server.ListenAndServe(); err != nil {
+		logger.Fatalf(nil, err, "Unable to start service")
 	}
 }
 
