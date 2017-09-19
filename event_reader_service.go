@@ -16,7 +16,7 @@ const (
 )
 
 func getLastEvent(eventReaderAddress string, interval string, lastEvent bool) (publishEvent, error) {
-	req, err := http.NewRequest("GET", eventReaderAddress+"annotations/events", nil)
+	req, err := http.NewRequest("GET", eventReaderAddress+"/annotations/events", nil)
 
 	q := req.URL.Query()
 	q.Add(intervalPathVar, interval)
@@ -63,7 +63,7 @@ func getLastEvent(eventReaderAddress string, interval string, lastEvent bool) (p
 
 func getTransactions(eventReaderAddress string, uuids []string, interval string) (transactions, error) {
 
-	req, err := http.NewRequest("GET", eventReaderAddress+"annotations/transactions", nil)
+	req, err := http.NewRequest("GET", eventReaderAddress+"/annotations/transactions", nil)
 	q := req.URL.Query()
 	if uuids != nil && len(uuids) != 0 {
 		for _, uuid := range uuids {
