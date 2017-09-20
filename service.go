@@ -8,15 +8,21 @@ import (
 )
 
 const (
-	defaultTimestampFormat    = time.RFC3339
-	isLastEventRequired       = true
-	contentType               = "Annotations"
+	defaultTimestampFormat = time.RFC3339Nano
+	isLastEventRequired    = true
+
+	contentType = "Annotations"
+
 	startEvent                = "PublishStart"
-	lastEvent                 = "SaveNeo4j"
+	completenessCriteriaEvent = "SaveNeo4j"
 	endEvent                  = "PublishEnd"
-	defaultCheckBackInterval  = "6h"
-	defaultMonitoringInterval = "10m"
-	defaultCheckFrequency     = 5
+
+	defaultCheckBackInterval       = "168h" // check back for 7 days at the most
+	defaultMonitoringInterval      = "10m" // ? will this still be needed?
+	defaultSupersededCheckInterval = "60m" // fix the last 60 minutes superseded
+	defaultCheckFrequency          = 5 //
+
+	infoLevel = "info"
 )
 
 type MonitoringService interface {
@@ -29,6 +35,7 @@ type AnnotationsMonitoringService struct {
 
 func (s AnnotationsMonitoringService) StartMonitoring() {
 
+	//start up from the last monitoring event in the store - if it is not present, consider a default interval
 	s.catchUP()
 
 	// check transactions every 5 minutes
@@ -51,17 +58,19 @@ func (s AnnotationsMonitoringService) StartMonitoring() {
 	}()
 }
 
-func (s AnnotationsMonitoringService) catchUP() {
+func (s AnnotationsMonitoringService) getLookBackInterval() (int, error) {
 
 	event, err := getLastEvent(s.eventReaderURL, defaultCheckBackInterval, isLastEventRequired)
+
 	if err != nil {
 		logger.Errorf(nil, err, "Error retrieving the latest monitoring publishEnd event from Splunk.")
-		return
+		return 0, err
 	}
 
 	t, err := time.Parse(defaultTimestampFormat, event.Time)
 	if err != nil {
 		logger.Errorf(nil, err, "Error parsing the last event's timestamp.")
+		return 0, err
 	}
 
 	//compute the duration since the last event was logged
@@ -73,7 +82,22 @@ func (s AnnotationsMonitoringService) catchUP() {
 	}
 
 	m := int(finalDuration)
-	interval := fmt.Sprintf("%dm", m)
+
+	return m, nil
+}
+
+
+func (s AnnotationsMonitoringService) catchUP() {
+
+	m, err := s.getLookBackInterval()
+	var interval string
+	if err == nil {
+		interval = fmt.Sprintf("%dm", m)
+	} else {
+		interval = defaultCheckBackInterval
+	}
+
+	fmt.Printf("Check back interval: %s", interval)
 
 	s.monitorTransactions(interval)
 }
@@ -103,7 +127,7 @@ func (s AnnotationsMonitoringService) monitorTransactions(interval string) {
 			// find start or end event
 			if event.Event == startEvent {
 				startTime = event.Time
-			} else if event.Event == lastEvent {
+			} else if event.Event == completenessCriteriaEvent && event.Level == infoLevel {
 				endTime = event.Time
 			}
 
@@ -159,7 +183,7 @@ func fixSupersededTransactions(eventReaderAddress string, sortedCompletedTids co
 	}
 
 	// get all the uncompleted transactions for those uuids, that have started before our actual set
-	unprocessedTids, err := getTransactions(eventReaderAddress, uuids, defaultMonitoringInterval)
+	unprocessedTids, err := getTransactions(eventReaderAddress, uuids, defaultSupersededCheckInterval)
 	if err != nil {
 		logger.Errorf(nil, err, "Verification of possible superseded transactions has failed.")
 		return

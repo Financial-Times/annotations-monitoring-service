@@ -33,7 +33,7 @@ func main() {
 
 	eventReaderURL := app.String(cli.StringOpt{
 		Name:   "event-reader-url",
-		Value:  "http://localhost:8080/",
+		Value:  "http://localhost:8083/__splunk-event-reader",
 		Desc:   "The address of the event reader application",
 		EnvVar: "EVENT_READER_URL",
 	})
