@@ -12,7 +12,10 @@ import (
 	"time"
 )
 
-const appDescription = "Service responsible for monitoring annotations publishes."
+const (
+	appDescription = "Service responsible for monitoring annotations publishes."
+	checkFrequency = 5 // check status of transactions every 5 minutes
+)
 
 func main() {
 	app := cli.App("annotations-monitoring-service", appDescription)
@@ -45,6 +48,20 @@ func main() {
 		EnvVar: "APP_PORT",
 	})
 
+	maxLookbackPeriod := app.Int(cli.IntOpt{
+		Name:   "maxLookbackPeriod",
+		Value:  10080, // look back for 7 days at the most
+		Desc:   "Defines (in minutes) how far should the monitoring service look back, if newer PublishEnd logs weren't found",
+		EnvVar: "MAX_LOOKBACK_PERIOD",
+	})
+
+	supersededCheckbackPeriod := app.Int(cli.IntOpt{
+		Name:   "defaultSupersededCheckPeriod",
+		Value:  10080, // fix the last 7 days superseded TIDs
+		Desc:   "Defines (in minutes) how far should the monitoring service look back for fixing superseded articles.",
+		EnvVar: "SUPERSEDED_CHECK_PERIOD",
+	})
+
 	logger.InitDefaultLogger(*appName)
 	logger.Infof(nil, "[Startup] annotations-monitoring-service is starting ")
 
@@ -55,17 +72,10 @@ func main() {
 			"Port":        *port,
 		}, "")
 
-		as := AnnotationsMonitoringService{
-			eventReaderURL: *eventReaderURL,
-		}
+		go serveAdminEndpoints(*appSystemCode, *appName, *port, *eventReaderURL)
+		startMonitoring(*eventReaderURL, *maxLookbackPeriod, *supersededCheckbackPeriod)
 
-		go func() {
-			serveAdminEndpoints(*appSystemCode, *appName, *port, *eventReaderURL)
-		}()
-
-		as.StartMonitoring()
-
-		waitForSignal()
+		waitForInterruptSignal()
 	}
 	err := app.Run(os.Args)
 	if err != nil {
@@ -84,6 +94,7 @@ func serveAdminEndpoints(appSystemCode, appName, port, eventReaderUrl string) {
 	serveMux.HandleFunc(status.GTGPath, status.NewGoodToGoHandler(healthService.gtgCheck))
 	serveMux.HandleFunc(status.BuildInfoPath, status.BuildInfoHandler)
 
+	//TODO check server timeout settings
 	server := http.Server{
 		Addr:         ":" + port,
 		Handler:      serveMux,
@@ -96,8 +107,34 @@ func serveAdminEndpoints(appSystemCode, appName, port, eventReaderUrl string) {
 	}
 }
 
-func waitForSignal() {
+func waitForInterruptSignal() {
 	ch := make(chan os.Signal)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 	<-ch
+}
+
+func startMonitoring(eventReaderURL string, maxLookbackPeriod, supersededCheckbackPeriod int) {
+	as := AnnotationsMonitoringService{
+		eventReader: SplunkEventReader{
+			eventReaderAddress: eventReaderURL,
+		},
+		maxLookbackPeriod:         maxLookbackPeriod,
+		supersededCheckbackPeriod: supersededCheckbackPeriod,
+	}
+
+	// close all the completed transactions that haven't yet been closed
+	as.CloseCompletedTransactions()
+	ticker := time.NewTicker(checkFrequency * time.Minute)
+	quit := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				as.CloseCompletedTransactions()
+			case <-quit:
+				ticker.Stop()
+				return
+			}
+		}
+	}()
 }

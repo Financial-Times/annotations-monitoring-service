@@ -4,108 +4,37 @@ import (
 	"fmt"
 	"github.com/Financial-Times/go-logger"
 	"sort"
+	"strings"
 	"time"
 )
 
 const (
-	defaultTimestampFormat = time.RFC3339Nano
-	isLastEventRequired    = true
-
-	contentType = "Annotations"
-
+	defaultTimestampFormat    = time.RFC3339Nano
+	contentType               = "Annotations"
 	startEvent                = "PublishStart"
 	completenessCriteriaEvent = "SaveNeo4j"
 	endEvent                  = "PublishEnd"
-
-	defaultCheckBackInterval       = "168h" // check back for 7 days at the most
-	defaultMonitoringInterval      = "10m" // ? will this still be needed?
-	defaultSupersededCheckInterval = "60m" // fix the last 60 minutes superseded
-	defaultCheckFrequency          = 5 //
-
-	infoLevel = "info"
+	infoLevel                 = "info"
 )
 
 type MonitoringService interface {
-	StartMonitoring()
+	CloseCompletedTransactions()
+	CloseSupersededTransactions(completedTids completedTransactionEvents, refInterval int)
+	DetermineLookbackPeriod() int
 }
 
 type AnnotationsMonitoringService struct {
-	eventReaderURL string
+	eventReader               SplunkEventReader
+	maxLookbackPeriod         int
+	supersededCheckbackPeriod int
 }
 
-func (s AnnotationsMonitoringService) StartMonitoring() {
+func (s AnnotationsMonitoringService) CloseCompletedTransactions() {
 
-	//start up from the last monitoring event in the store - if it is not present, consider a default interval
-	s.catchUP()
+	lookbackTime := s.DetermineLookbackPeriod()
 
-	// check transactions every 5 minutes
-	ticker := time.NewTicker(defaultCheckFrequency * time.Minute)
-	quit := make(chan struct{})
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				//query for last 10 minutes
-				// TODO add validation for interval
-				// TODO change code, so that the normal monitoring event would look back from the LATEST PUBLISHEND event
-				// - take the code from the catchUP method - ... refactor
-				s.monitorTransactions(defaultMonitoringInterval)
-			case <-quit:
-				ticker.Stop()
-				return
-			}
-		}
-	}()
-}
-
-func (s AnnotationsMonitoringService) getLookBackInterval() (int, error) {
-
-	event, err := getLastEvent(s.eventReaderURL, defaultCheckBackInterval, isLastEventRequired)
-
-	if err != nil {
-		logger.Errorf(nil, err, "Error retrieving the latest monitoring publishEnd event from Splunk.")
-		return 0, err
-	}
-
-	t, err := time.Parse(defaultTimestampFormat, event.Time)
-	if err != nil {
-		logger.Errorf(nil, err, "Error parsing the last event's timestamp.")
-		return 0, err
-	}
-
-	//compute the duration since the last event was logged
-	//consider that value - 5 min => to keep the overlapping period
-	duration := time.Since(t)
-	finalDuration := duration.Minutes() + 5
-	if finalDuration < 10 {
-		finalDuration = 10
-	}
-
-	m := int(finalDuration)
-
-	return m, nil
-}
-
-
-func (s AnnotationsMonitoringService) catchUP() {
-
-	m, err := s.getLookBackInterval()
-	var interval string
-	if err == nil {
-		interval = fmt.Sprintf("%dm", m)
-	} else {
-		interval = defaultCheckBackInterval
-	}
-
-	fmt.Printf("Check back interval: %s", interval)
-
-	s.monitorTransactions(interval)
-}
-
-func (s AnnotationsMonitoringService) monitorTransactions(interval string) {
-
-	// retrieve all the entries for a particular content type
-	tids, err := getTransactions(s.eventReaderURL, nil, interval)
+	// retrieve all the open transactions for a particular content type
+	tids, err := s.eventReader.GetTransactions(strings.ToLower(contentType), fmt.Sprintf("%dm", lookbackTime))
 	if err != nil {
 		logger.Errorf(nil, err, "Monitoring transactions has failed.")
 		return
@@ -131,7 +60,7 @@ func (s AnnotationsMonitoringService) monitorTransactions(interval string) {
 				endTime = event.Time
 			}
 
-			// find mapper event: if message is not valid, log it as successful PublishEnd event.
+			// find mapper event: if message is not valid, log it as a PublishEnd event.
 			// use isValid string, to distinguish between missing and invalid events
 			if event.IsValid == "true" {
 				isValid = "true"
@@ -148,8 +77,7 @@ func (s AnnotationsMonitoringService) monitorTransactions(interval string) {
 
 		duration, err := computeDuration(startTime, endTime)
 		if err != nil {
-			//TODO check whether this was intended or not
-			logger.NewEntry(tid.TransactionID).WithUUID(tid.UUID).WithError(err).Error("Error parsing timestamp")
+			logger.NewEntry(tid.TransactionID).WithUUID(tid.UUID).WithError(err).Error("Duration couldn't be determined, transaction won't be closed.")
 		}
 
 		completedTids = append(completedTids, completedTransactionEvent{tid.TransactionID, tid.UUID, tid.Duration, startTime, endTime})
@@ -168,47 +96,69 @@ func (s AnnotationsMonitoringService) monitorTransactions(interval string) {
 		}, "Transaction has finished")
 	}
 
-	sort.Sort(completedTids)
-	fixSupersededTransactions(s.eventReaderURL, completedTids)
+	s.CloseSupersededTransactions(completedTids, lookbackTime)
 }
 
-func fixSupersededTransactions(eventReaderAddress string, sortedCompletedTids completedTransactionEvents) {
+func (s AnnotationsMonitoringService) DetermineLookbackPeriod() int {
 
-	// check all transactions for that uuid that happened before
+	event, err := s.eventReader.GetLatestEvent(strings.ToLower(contentType), fmt.Sprintf("%dm", s.maxLookbackPeriod))
+	if err != nil {
+		return s.maxLookbackPeriod
+	}
+
+	t, err := time.Parse(defaultTimestampFormat, event.Time)
+	if err != nil {
+		return s.maxLookbackPeriod
+	}
+
+	//compute the time period since the last event was logged
+	//consider that value - 5 min => to keep it overlapping
+	period := time.Since(t)
+	lookbackPeriod := period.Minutes() + 5
+	if lookbackPeriod < 10 {
+		lookbackPeriod = 10
+	}
+
+	return int(lookbackPeriod)
+}
+
+func (s AnnotationsMonitoringService) CloseSupersededTransactions(completedTids completedTransactionEvents, refInterval int) {
+
+	//sort transactions
+	sort.Sort(completedTids)
 
 	// collect all the uuids that have successfully published in the recent transaction set
 	var uuids []string
-	for _, tid := range sortedCompletedTids {
+	for _, tid := range completedTids {
 		uuids = append(uuids, tid.UUID)
 	}
 
-	// get all the uncompleted transactions for those uuids, that have started before our actual set
-	unprocessedTids, err := getTransactions(eventReaderAddress, uuids, defaultSupersededCheckInterval)
+	// get all the uncompleted transactions for those UUIDs, that have started before our actual set
+	unprocessedTids, err := s.eventReader.GetTransactionsForUUIDs(strings.ToLower(contentType), uuids, fmt.Sprintf("%dm", refInterval+s.supersededCheckbackPeriod))
 	if err != nil {
-		logger.Errorf(nil, err, "Verification of possible superseded transactions has failed.")
+		logger.Errorf(nil, err, "Checking for superseded transactions has failed.")
 		return
 	}
 
 	// take all the completed transactions
-	for _, ctid := range sortedCompletedTids {
+	for _, ctid := range completedTids {
 
-		// check that unprocessed transactions
+		// verify if within the unprocessed transactions there is any that have been superseded
 		for i, utid := range unprocessedTids {
 			if utid.UUID == ctid.UUID {
 
-				//check that it is the same transaction: if so, remove it from the store
+				//check that it is the same transaction: if so, remove it from the list
 				if utid.TransactionID == ctid.TransactionID {
 					unprocessedTids = append(unprocessedTids[:i], unprocessedTids[i+1:]...)
 					continue
 				}
 
 				//check that it was a transaction that happened before the actual transaction
-				if b, t := earlierTransaction(utid, ctid); b {
+				if isEarlier, startTime := earlierTransaction(utid, ctid); isEarlier {
 
-					duration, err := computeDuration(t, ctid.EndTime)
+					duration, err := computeDuration(startTime, ctid.EndTime)
 					if err != nil {
-						//TODO check whether this was intended or not
-						logger.NewEntry(utid.TransactionID).WithUUID(utid.UUID).WithError(err).Error("Error parsing timestamp")
+						logger.NewEntry(utid.TransactionID).WithUUID(utid.UUID).WithError(err).Error("Duration couldn't be determined, transaction won't be closed.")
 					}
 
 					logger.Infof(map[string]interface{}{
@@ -217,12 +167,12 @@ func fixSupersededTransactions(eventReaderAddress string, sortedCompletedTids co
 						"event":                endEvent,
 						"transaction_id":       utid.TransactionID,
 						"uuid":                 utid.UUID,
-						"startTime":            t,
+						"startTime":            startTime,
 						"endTime":              ctid.EndTime,
 						"transaction_duration": fmt.Sprint(duration.Seconds()),
 						"monitoring_event":     "true",
 						// isValid field will be missing, because we can't tell for sure if that tid was failing
-						// before it reached the mapper, of not. Also, we can't use the actual value for that tid, cause the article
+						// before it reached the mapper, of not. Also, we can't use the actual value for that tid, because the article
 						// might have suffered validation changes by then.
 						"content_type": contentType,
 					}, "Transaction has finished")
@@ -235,11 +185,11 @@ func fixSupersededTransactions(eventReaderAddress string, sortedCompletedTids co
 	}
 }
 
-func earlierTransaction(utid transactionEvent, ctid completedTransactionEvent) (bool, string) {
+func earlierTransaction(utid transactionEvent, ctid completedTransactionEvent) (isEarlier bool, startTime string) {
 
 	isAnnotationEvent := false
-	isEarlier := false
-	startTime := ""
+	isEarlier = false
+	startTime = ""
 	for _, event := range utid.Events {
 		// mark as annotations event
 		if event.ContentType == contentType {

@@ -15,12 +15,22 @@ const (
 	lastEventPathVar = "lastEvent"
 )
 
-func getLastEvent(eventReaderAddress string, interval string, lastEvent bool) (publishEvent, error) {
-	req, err := http.NewRequest("GET", eventReaderAddress+"/annotations/events", nil)
+type EventReader interface {
+	GetTransactions(contentType string, lookbackPeriod string) (transactions, error)
+	GetTransactionsForUUIDs(contentType string, uuids []string, lookbackPeriod string) (transactions, error)
+	GetLatestEvent(contentType string, lookbackPeriod string) (publishEvent, error)
+}
+
+type SplunkEventReader struct {
+	eventReaderAddress string
+}
+
+func (ser *SplunkEventReader) GetLatestEvent(contentType string, lookbackPeriod string) (publishEvent, error) {
+	req, err := http.NewRequest("GET", ser.eventReaderAddress+"/"+contentType+"/events", nil)
 
 	q := req.URL.Query()
-	q.Add(intervalPathVar, interval)
-	q.Add(lastEventPathVar, strconv.FormatBool(lastEvent))
+	q.Add(intervalPathVar, lookbackPeriod)
+	q.Add(lastEventPathVar, strconv.FormatBool(true))
 	req.URL.RawQuery = q.Encode()
 
 	resp, err := http.DefaultClient.Do(req)
@@ -33,13 +43,11 @@ func getLastEvent(eventReaderAddress string, interval string, lastEvent bool) (p
 	}
 	defer cleanUp(resp)
 
-	//TODO consider at least one retry?
 	if resp.StatusCode != http.StatusOK {
 		logger.Errorf(map[string]interface{}{
 			"url":         req.URL.String(),
 			"status code": resp.StatusCode,
 		}, nil, "Failed to retrieve latest log event")
-		//retry? threat status codes accordingly 500 -> retry; 404->nil; 200->parse and continue;
 		return publishEvent{}, err
 	}
 
@@ -61,9 +69,13 @@ func getLastEvent(eventReaderAddress string, interval string, lastEvent bool) (p
 	return event, nil
 }
 
-func getTransactions(eventReaderAddress string, uuids []string, interval string) (transactions, error) {
+func (ser *SplunkEventReader) GetTransactions(contentType string, lookbackPeriod string) (transactions, error) {
+	return ser.GetTransactionsForUUIDs(contentType, nil, lookbackPeriod)
+}
 
-	req, err := http.NewRequest("GET", eventReaderAddress+"/annotations/transactions", nil)
+func (ser *SplunkEventReader) GetTransactionsForUUIDs(contentType string, uuids []string, interval string) (transactions, error) {
+
+	req, err := http.NewRequest("GET", ser.eventReaderAddress+"/"+contentType+"/transactions", nil)
 	q := req.URL.Query()
 	if uuids != nil && len(uuids) != 0 {
 		for _, uuid := range uuids {
@@ -83,13 +95,11 @@ func getTransactions(eventReaderAddress string, uuids []string, interval string)
 	}
 	defer cleanUp(resp)
 
-	//TODO consider at least one retry?
 	if resp.StatusCode != http.StatusOK {
 		logger.Errorf(map[string]interface{}{
 			"url":         req.URL.String(),
 			"status code": resp.StatusCode,
 		}, nil, "Failed to retrieve transations")
-		//retry? threat status codes accordingly 500 -> retry; 404->nil; 200->parse and continue;
 		return nil, err
 	}
 
