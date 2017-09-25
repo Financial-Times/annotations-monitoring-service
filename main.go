@@ -50,14 +50,14 @@ func main() {
 
 	maxLookbackPeriod := app.Int(cli.IntOpt{
 		Name:   "maxLookbackPeriod",
-		Value:  10080, // look back for 7 days at the most
+		Value:  4320, // look back for 3 days at the most
 		Desc:   "Defines (in minutes) how far should the monitoring service look back, if newer PublishEnd logs weren't found",
 		EnvVar: "MAX_LOOKBACK_PERIOD",
 	})
 
 	supersededCheckbackPeriod := app.Int(cli.IntOpt{
 		Name:   "defaultSupersededCheckPeriod",
-		Value:  10080, // fix the last 7 days superseded TIDs
+		Value:  60, // fix the last 1 hour superseded TIDs
 		Desc:   "Defines (in minutes) how far should the monitoring service look back for fixing superseded articles.",
 		EnvVar: "SUPERSEDED_CHECK_PERIOD",
 	})

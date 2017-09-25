@@ -24,7 +24,7 @@ type MonitoringService interface {
 }
 
 type AnnotationsMonitoringService struct {
-	eventReader               SplunkEventReader
+	eventReader               EventReader
 	maxLookbackPeriod         int
 	supersededCheckbackPeriod int
 }
@@ -36,7 +36,7 @@ func (s AnnotationsMonitoringService) CloseCompletedTransactions() {
 	// retrieve all the open transactions for a particular content type
 	tids, err := s.eventReader.GetTransactions(strings.ToLower(contentType), fmt.Sprintf("%dm", lookbackTime))
 	if err != nil {
-		logger.Errorf(nil, err, "Monitoring transactions has failed.")
+		logger.Errorf(map[string]interface{}{}, err, "Monitoring transactions has failed.")
 		return
 	}
 
@@ -133,6 +133,10 @@ func (s AnnotationsMonitoringService) CloseSupersededTransactions(completedTids 
 		uuids = append(uuids, tid.UUID)
 	}
 
+	if len(uuids) == 0 {
+		return
+	}
+
 	// get all the uncompleted transactions for those UUIDs, that have started before our actual set
 	unprocessedTids, err := s.eventReader.GetTransactionsForUUIDs(strings.ToLower(contentType), uuids, fmt.Sprintf("%dm", refInterval+s.supersededCheckbackPeriod))
 	if err != nil {
@@ -175,7 +179,7 @@ func (s AnnotationsMonitoringService) CloseSupersededTransactions(completedTids 
 						// before it reached the mapper, of not. Also, we can't use the actual value for that tid, because the article
 						// might have suffered validation changes by then.
 						"content_type": contentType,
-					}, "Transaction has finished")
+					}, "Transaction has been superseded.")
 
 					//remove from unprocessedTransactionList
 					unprocessedTids = append(unprocessedTids[:i], unprocessedTids[i+1:]...)

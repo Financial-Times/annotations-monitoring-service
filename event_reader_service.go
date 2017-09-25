@@ -25,7 +25,7 @@ type SplunkEventReader struct {
 	eventReaderAddress string
 }
 
-func (ser *SplunkEventReader) GetLatestEvent(contentType string, lookbackPeriod string) (publishEvent, error) {
+func (ser SplunkEventReader) GetLatestEvent(contentType string, lookbackPeriod string) (publishEvent, error) {
 	req, err := http.NewRequest("GET", ser.eventReaderAddress+"/"+contentType+"/events", nil)
 
 	q := req.URL.Query()
@@ -69,11 +69,11 @@ func (ser *SplunkEventReader) GetLatestEvent(contentType string, lookbackPeriod 
 	return event, nil
 }
 
-func (ser *SplunkEventReader) GetTransactions(contentType string, lookbackPeriod string) (transactions, error) {
+func (ser SplunkEventReader) GetTransactions(contentType string, lookbackPeriod string) (transactions, error) {
 	return ser.GetTransactionsForUUIDs(contentType, nil, lookbackPeriod)
 }
 
-func (ser *SplunkEventReader) GetTransactionsForUUIDs(contentType string, uuids []string, interval string) (transactions, error) {
+func (ser SplunkEventReader) GetTransactionsForUUIDs(contentType string, uuids []string, interval string) (transactions, error) {
 
 	req, err := http.NewRequest("GET", ser.eventReaderAddress+"/"+contentType+"/transactions", nil)
 	q := req.URL.Query()
