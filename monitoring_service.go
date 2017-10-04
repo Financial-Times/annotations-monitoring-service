@@ -78,6 +78,7 @@ func (s AnnotationsMonitoringService) CloseCompletedTransactions() {
 		duration, err := computeDuration(startTime, endTime)
 		if err != nil {
 			logger.NewEntry(tid.TransactionID).WithUUID(tid.UUID).WithError(err).Error("Duration couldn't be determined, transaction won't be closed.")
+			continue
 		}
 
 		completedTids = append(completedTids, completedTransactionEvent{tid.TransactionID, tid.UUID, tid.Duration, startTime, endTime})
@@ -130,7 +131,7 @@ func (s AnnotationsMonitoringService) CloseSupersededTransactions(completedTids 
 	// collect all the uuids that have successfully published in the recent transaction set
 	var uuids []string
 	for _, tid := range completedTids {
-		uuids = append(uuids, tid.UUID)
+		uuids = uniqueAppend(uuids, tid.UUID)
 	}
 
 	if len(uuids) == 0 {
@@ -148,12 +149,11 @@ func (s AnnotationsMonitoringService) CloseSupersededTransactions(completedTids 
 	for _, ctid := range completedTids {
 
 		// verify if within the unprocessed transactions there is any that have been superseded
-		for i, utid := range unprocessedTids {
+		for _, utid := range unprocessedTids {
 			if utid.UUID == ctid.UUID {
 
-				//check that it is the same transaction: if so, remove it from the list
+				//check that it is the same transaction: if so, skip it
 				if utid.TransactionID == ctid.TransactionID {
-					unprocessedTids = append(unprocessedTids[:i], unprocessedTids[i+1:]...)
 					continue
 				}
 
@@ -163,6 +163,7 @@ func (s AnnotationsMonitoringService) CloseSupersededTransactions(completedTids 
 					duration, err := computeDuration(startTime, ctid.EndTime)
 					if err != nil {
 						logger.NewEntry(utid.TransactionID).WithUUID(utid.UUID).WithError(err).Error("Duration couldn't be determined, transaction won't be closed.")
+						continue
 					}
 
 					logger.Infof(map[string]interface{}{
@@ -180,13 +181,21 @@ func (s AnnotationsMonitoringService) CloseSupersededTransactions(completedTids 
 						// might have suffered validation changes by then.
 						"content_type": contentType,
 					}, "Transaction has been superseded.")
-
-					//remove from unprocessedTransactionList
-					unprocessedTids = append(unprocessedTids[:i], unprocessedTids[i+1:]...)
 				}
 			}
 		}
 	}
+}
+
+func uniqueAppend(uuids []string, uuid string) []string {
+
+	for _, u := range uuids {
+		if u == uuid {
+			return uuids
+		}
+	}
+
+	return append(uuids, uuid)
 }
 
 func earlierTransaction(utid transactionEvent, ctid completedTransactionEvent) (isEarlier bool, startTime string) {
