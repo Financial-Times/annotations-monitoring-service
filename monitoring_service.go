@@ -148,12 +148,16 @@ func (s AnnotationsMonitoringService) CloseSupersededTransactions(completedTids 
 	// take all the completed transactions
 	for _, ctid := range completedTids {
 
+		processedTids := []string{}
+
 		// verify if within the unprocessed transactions there is any that have been superseded
 		for _, utid := range unprocessedTids {
+
 			if utid.UUID == ctid.UUID {
 
 				//check that it is the same transaction: if so, skip it
 				if utid.TransactionID == ctid.TransactionID {
+					processedTids = append(processedTids, utid.TransactionID)
 					continue
 				}
 
@@ -166,6 +170,7 @@ func (s AnnotationsMonitoringService) CloseSupersededTransactions(completedTids 
 						continue
 					}
 
+					processedTids = append(processedTids, utid.TransactionID)
 					logger.Infof(map[string]interface{}{
 						"@time":                ctid.EndTime,
 						"logTime":              time.Now().Format(defaultTimestampFormat),
@@ -180,11 +185,36 @@ func (s AnnotationsMonitoringService) CloseSupersededTransactions(completedTids 
 						// before it reached the mapper, of not. Also, we can't use the actual value for that tid, because the article
 						// might have suffered validation changes by then.
 						"content_type": contentType,
-					}, "Transaction has been superseded.")
+					}, fmt.Sprintf("Transaction has been superseded by tid=%s.", ctid.TransactionID))
+
 				}
 			}
 		}
+
+		unprocessedTids = removeElements(unprocessedTids, processedTids)
 	}
+}
+
+func removeElements(events []transactionEvent, tids []string) []transactionEvent {
+
+	result := []transactionEvent{}
+
+	for _, e := range events {
+
+		found := false
+		for _, tid := range tids {
+			if e.TransactionID == tid {
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			result = append(result, e)
+		}
+	}
+
+	return result
 }
 
 func uniqueAppend(uuids []string, uuid string) []string {

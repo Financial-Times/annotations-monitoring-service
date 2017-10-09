@@ -98,7 +98,7 @@ func serveAdminEndpoints(appSystemCode, appName, port, eventReaderUrl string) {
 	server := http.Server{
 		Addr:         ":" + port,
 		Handler:      serveMux,
-		ReadTimeout:  time.Duration(60 * time.Second),
+		ReadTimeout:  time.Duration(120 * time.Second),
 		WriteTimeout: time.Duration(60 * time.Second),
 	}
 

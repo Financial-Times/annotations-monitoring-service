@@ -65,12 +65,12 @@ func (service *healthService) eventReaderReachabilityChecker() (string, error) {
 	defer cleanUp(resp)
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Sprintf("Connecting to %s was not successful. Status: %ds", req.URL.String(), resp.StatusCode), err
+		return fmt.Sprintf("Connecting to %s was not successful. Status: %d", req.URL.String(), resp.StatusCode), err
 	}
 
 	_, err = ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return fmt.Sprintf("Could not parse payload from response for url=%s", req.URL.String()), err
+		return fmt.Sprintf("Could not read payload from response for url=%s", req.URL.String()), err
 	}
 
 	return "Splunk event reader is healthy", nil

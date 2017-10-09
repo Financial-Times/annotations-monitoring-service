@@ -225,6 +225,15 @@ func Test_CloseCompletedTransactions_ComplexScenario(t *testing.T) {
 				{ContentType: contentType, Time: "2017-09-22T11:55:02.00000000Z", IsValid: "true", Event: "Map"},
 				{ContentType: contentType, Time: "2017-09-22T11:55:04.00000000Z", Event: completenessCriteriaEvent, Level: "info"},
 			}},
+		// later successful one
+		transactionEvent{
+			TransactionID: "tid5",
+			UUID:          "uuid1",
+			Events: []publishEvent{
+				{ContentType: "", Time: "2017-09-22T11:56:00.00000000Z", Event: startEvent},
+				{ContentType: contentType, Time: "2017-09-22T11:56:02.00000000Z", IsValid: "true", Event: "Map"},
+				{ContentType: contentType, Time: "2017-09-22T11:56:04.00000000Z", Event: completenessCriteriaEvent, Level: "info"},
+			}},
 	}
 
 	readerMock.On("GetLatestEvent", strings.ToLower(contentType), mock.AnythingOfType("string")).
@@ -239,21 +248,23 @@ func Test_CloseCompletedTransactions_ComplexScenario(t *testing.T) {
 	// Verifications - check that the mock object was called with the previously specified parameters
 	readerMock.AssertExpectations(t)
 
+	assert.Equal(t, 5, len(hook.AllEntries()))
+
 	// Verify that all the log message fields are as expected...
 	assert.Equal(t, "info", hook.LastEntry().Level.String())
-	//assert.Equal(t, "Transaction has finished", hook.LastEntry().Message)
-	//assert.Equal(t, endEvent, hook.LastEntry().Data["event"])
-	//assert.Equal(t, "uuid1", hook.LastEntry().Data["uuid"])
-	//assert.Equal(t, contentType, hook.LastEntry().Data["content_type"])
-	//assert.Equal(t, "true", hook.LastEntry().Data["monitoring_event"])
-	//assert.Equal(t, "tid1", hook.LastEntry().Data["transaction_id"])
-	//
-	//assert.Equal(t, "2017-09-22T11:45:47.23038034Z", hook.LastEntry().Data["startTime"])
-	//assert.Equal(t, "2017-09-22T11:45:53.23038034Z", hook.LastEntry().Data["endTime"])
-	//
-	//assert.Equal(t, "true", hook.LastEntry().Data["isValid"])
-	//assert.Equal(t, "6", hook.LastEntry().Data["transaction_duration"])
-	//assert.True(t, hook.LastEntry().Data["@time"] != nil)
+	assert.Equal(t, "Transaction has been superseded by tid=tid4.", hook.LastEntry().Message)
+	assert.Equal(t, endEvent, hook.LastEntry().Data["event"])
+	assert.Equal(t, "uuid1", hook.LastEntry().Data["uuid"])
+	assert.Equal(t, contentType, hook.LastEntry().Data["content_type"])
+	assert.Equal(t, "true", hook.LastEntry().Data["monitoring_event"])
+	assert.Equal(t, "tid3", hook.LastEntry().Data["transaction_id"])
+
+	assert.Equal(t, "2017-09-22T11:50:00.00000000Z", hook.LastEntry().Data["startTime"])
+	assert.Equal(t, "2017-09-22T11:55:04.00000000Z", hook.LastEntry().Data["endTime"])
+
+	assert.Equal(t, nil, hook.LastEntry().Data["isValid"])
+	assert.Equal(t, "304", hook.LastEntry().Data["transaction_duration"])
+	assert.True(t, hook.LastEntry().Data["@time"] != nil)
 }
 
 func Test_CloseSupersededTransactions(t *testing.T) {
@@ -391,7 +402,7 @@ func Test_CloseSupersededTransactions(t *testing.T) {
 					UUID:          "uuid1",
 					Events:        []publishEvent{{ContentType: contentType, Time: "2017-09-22T11:45:47.23038034Z", Event: startEvent}}},
 			}, nil,
-			"info", "Transaction has been superseded.",
+			"info", "Transaction has been superseded by tid=tid1.",
 		},
 	}
 
@@ -462,7 +473,7 @@ func Test_CloseSupersededTransactions_ComplexScenario(t *testing.T) {
 
 	// Verify that all the log message fields are as expected...
 	assert.Equal(t, "info", hook.LastEntry().Level.String())
-	assert.Equal(t, "Transaction has been superseded.", hook.LastEntry().Message)
+	assert.Equal(t, "Transaction has been superseded by tid=tid1.", hook.LastEntry().Message)
 	assert.Equal(t, endEvent, hook.LastEntry().Data["event"])
 	assert.Equal(t, "uuid1", hook.LastEntry().Data["uuid"])
 	assert.Equal(t, contentType, hook.LastEntry().Data["content_type"])
