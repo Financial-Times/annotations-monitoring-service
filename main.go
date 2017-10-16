@@ -94,7 +94,6 @@ func serveAdminEndpoints(appSystemCode, appName, port, eventReaderUrl string) {
 	serveMux.HandleFunc(status.GTGPath, status.NewGoodToGoHandler(healthService.gtgCheck))
 	serveMux.HandleFunc(status.BuildInfoPath, status.BuildInfoHandler)
 
-	//TODO check server timeout settings
 	server := http.Server{
 		Addr:         ":" + port,
 		Handler:      serveMux,
