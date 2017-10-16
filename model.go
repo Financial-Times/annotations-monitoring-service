@@ -19,12 +19,24 @@ type transactionEvent struct {
 	TransactionID string         `json:"transaction_id"`
 	UUID          string         `json:"uuid"`
 	ClosedTxn     string         `json:"closed_txn"`
-	Duration      string         `json:"duration"`
 	EventCount    int            `json:"eventcount"`
+	StartTime     string         `json:"start_time"`
 	Events        []publishEvent `json:"events"`
 }
 
 type transactions []transactionEvent
+
+func (a transactions) Len() int {
+	return len(a)
+}
+
+func (a transactions) Swap(i, j int) {
+	a[i], a[j] = a[j], a[i]
+}
+
+func (a transactions) Less(i, j int) bool {
+	return a[i].StartTime < a[j].StartTime
+}
 
 // ***********************************
 

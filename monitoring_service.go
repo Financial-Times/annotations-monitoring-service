@@ -40,6 +40,10 @@ func (s AnnotationsMonitoringService) CloseCompletedTransactions() {
 		return
 	}
 
+	//Transactions should be closed in the order they happened, so that the latest PublishEnd event indicates the actual status.
+	//In this way, if the app restarts, the unprocessed transactions would all be picked up again.
+	sort.Sort(tids)
+
 	var completedTids completedTransactionEvents
 
 	for _, tid := range tids {
@@ -81,7 +85,7 @@ func (s AnnotationsMonitoringService) CloseCompletedTransactions() {
 			continue
 		}
 
-		completedTids = append(completedTids, completedTransactionEvent{tid.TransactionID, tid.UUID, tid.Duration, startTime, endTime})
+		completedTids = append(completedTids, completedTransactionEvent{tid.TransactionID, tid.UUID, fmt.Sprint(duration.Seconds()), startTime, endTime})
 		logger.Infof(map[string]interface{}{
 			"@time":                endTime,
 			"logTime":              time.Now().Format(defaultTimestampFormat),
@@ -144,6 +148,7 @@ func (s AnnotationsMonitoringService) CloseSupersededTransactions(completedTids 
 		logger.Errorf(nil, err, "Checking for superseded transactions has failed.")
 		return
 	}
+	sort.Sort(unprocessedTids)
 
 	// take all the completed transactions
 	for _, ctid := range completedTids {

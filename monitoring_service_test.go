@@ -197,29 +197,33 @@ func Test_CloseCompletedTransactions_ComplexScenario(t *testing.T) {
 		transactionEvent{
 			TransactionID: "tid1",
 			UUID:          "uuid1",
+			StartTime:     "2017-09-22T11:45:00.00000000Z",
 			Events: []publishEvent{
 				{ContentType: "", Time: "2017-09-22T11:45:00.00000000Z", Event: startEvent},
 				{ContentType: contentType, Time: "2017-09-22T11:45:02.00000000Z", IsValid: "true", Event: "Map"},
 			}},
-		//incomplete
-		transactionEvent{
-			TransactionID: "tid2",
-			UUID:          "uuid1",
-			Events: []publishEvent{
-				{ContentType: "", Time: "2017-09-22T11:47:00.00000000Z", Event: startEvent},
-				{ContentType: contentType, Time: "2017-09-22T11:45:02.00000000Z", IsValid: "true", Event: "Map"},
-			}},
+		//incomplete - arbitrary order
 		transactionEvent{
 			TransactionID: "tid3",
 			UUID:          "uuid1",
+			StartTime:     "2017-09-22T11:50:00.00000000Z",
 			Events: []publishEvent{
 				{ContentType: "", Time: "2017-09-22T11:50:00.00000000Z", Event: startEvent},
+				{ContentType: contentType, Time: "2017-09-22T11:45:02.00000000Z", IsValid: "true", Event: "Map"},
+			}},
+		transactionEvent{
+			TransactionID: "tid2",
+			UUID:          "uuid1",
+			StartTime:     "2017-09-22T11:47:00.00000000Z",
+			Events: []publishEvent{
+				{ContentType: "", Time: "2017-09-22T11:47:00.00000000Z", Event: startEvent},
 				{ContentType: contentType, Time: "2017-09-22T11:45:02.00000000Z", IsValid: "true", Event: "Map"},
 			}},
 		// successful one
 		transactionEvent{
 			TransactionID: "tid4",
 			UUID:          "uuid1",
+			StartTime:     "2017-09-22T11:55:00.00000000Z",
 			Events: []publishEvent{
 				{ContentType: "", Time: "2017-09-22T11:55:00.00000000Z", Event: startEvent},
 				{ContentType: contentType, Time: "2017-09-22T11:55:02.00000000Z", IsValid: "true", Event: "Map"},
@@ -229,6 +233,7 @@ func Test_CloseCompletedTransactions_ComplexScenario(t *testing.T) {
 		transactionEvent{
 			TransactionID: "tid5",
 			UUID:          "uuid1",
+			StartTime:     "2017-09-22T11:56:00.00000000Z",
 			Events: []publishEvent{
 				{ContentType: "", Time: "2017-09-22T11:56:00.00000000Z", Event: startEvent},
 				{ContentType: contentType, Time: "2017-09-22T11:56:02.00000000Z", IsValid: "true", Event: "Map"},

@@ -4,30 +4,11 @@ import (
 	"fmt"
 	"github.com/Financial-Times/go-logger"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 )
-
-func TestServer(t *testing.T) {
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("hello"))
-	}))
-	defer ts.Close()
-	res, err := http.Get(ts.URL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	got, err := ioutil.ReadAll(res.Body)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if string(got) != "hello" {
-		t.Errorf("got %q, want hello", string(got))
-	}
-}
 
 func TestGetLatestEvent_ServerErrors(t *testing.T) {
 
@@ -217,9 +198,7 @@ func TestGetTransactionsForUUIDs_Success(t *testing.T) {
 	hook := logger.NewTestHook("annotations-monitoring-service")
 	eventReaderServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, fmt.Sprintf("/%s/transactions", strings.ToLower(contentType)), r.URL.Path)
-		//TODO check if this is good or not
 		assert.Equal(t, fmt.Sprintf("%s=%s&%s=%s&%s=%s", intervalPathVar, "60m", uuidPathVar, "uuid1", uuidPathVar, "uuid2"), r.URL.RawQuery)
-
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("[]"))
 	}))
