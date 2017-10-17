@@ -193,7 +193,7 @@ func Test_CloseCompletedTransactions_ComplexScenario(t *testing.T) {
 	}
 
 	tids := transactions{
-		//incomplete
+		// incomplete
 		transactionEvent{
 			TransactionID: "tid1",
 			UUID:          "uuid1",
@@ -202,7 +202,7 @@ func Test_CloseCompletedTransactions_ComplexScenario(t *testing.T) {
 				{ContentType: "", Time: "2017-09-22T11:45:00.00000000Z", Event: startEvent},
 				{ContentType: contentType, Time: "2017-09-22T11:45:02.00000000Z", IsValid: "true", Event: "Map"},
 			}},
-		//incomplete - arbitrary order
+		// incomplete - arbitrary order
 		transactionEvent{
 			TransactionID: "tid3",
 			UUID:          "uuid1",

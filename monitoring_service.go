@@ -40,8 +40,8 @@ func (s AnnotationsMonitoringService) CloseCompletedTransactions() {
 		return
 	}
 
-	//Transactions should be closed in the order they happened, so that the latest PublishEnd event indicates the actual status.
-	//In this way, if the app restarts, the unprocessed transactions would all be picked up again.
+	// transactions should be closed in the order they happened, so that the latest PublishEnd event indicates the actual status;
+	// in this way, if the app restarts, the unprocessed transactions would all be picked up again.
 	sort.Sort(tids)
 
 	var completedTids completedTransactionEvents
@@ -52,7 +52,7 @@ func (s AnnotationsMonitoringService) CloseCompletedTransactions() {
 		isAnnotationEvent := false
 
 		for _, event := range tid.Events {
-			// mark annotations event
+			// identify the annotation events
 			if event.ContentType == contentType {
 				isAnnotationEvent = true
 			}
@@ -64,8 +64,8 @@ func (s AnnotationsMonitoringService) CloseCompletedTransactions() {
 				endTime = event.Time
 			}
 
-			// find mapper event: if message is not valid, log it as a PublishEnd event.
-			// use isValid string, to distinguish between missing and invalid events
+			// find mapper event: if message is not valid, log it as a PublishEnd event;
+			// use isValid string to distinguish between missing and invalid events
 			if event.IsValid == "true" {
 				isValid = "true"
 			} else if event.IsValid == "false" {
@@ -74,7 +74,7 @@ func (s AnnotationsMonitoringService) CloseCompletedTransactions() {
 			}
 		}
 
-		//if it is not a completed and valid annotation transaction series: skip it
+		// if it is not a completed and valid annotation transaction: ignore it
 		if !isAnnotationEvent || startTime == "" || endTime == "" || isValid == "" {
 			continue
 		}
@@ -116,8 +116,8 @@ func (s AnnotationsMonitoringService) DetermineLookbackPeriod() int {
 		return s.maxLookbackPeriod
 	}
 
-	//compute the time period since the last event was logged
-	//consider that value - 5 min => to keep it overlapping
+	// compute the time period since the last event was logged
+	// consider that value - 5 min => to keep it overlapping
 	period := time.Since(t)
 	lookbackPeriod := period.Minutes() + 5
 	if lookbackPeriod < 10 {
@@ -129,7 +129,7 @@ func (s AnnotationsMonitoringService) DetermineLookbackPeriod() int {
 
 func (s AnnotationsMonitoringService) CloseSupersededTransactions(completedTids completedTransactionEvents, refInterval int) {
 
-	//sort transactions
+	// sort transactions
 	sort.Sort(completedTids)
 
 	// collect all the uuids that have successfully published in the recent transaction set
@@ -160,13 +160,13 @@ func (s AnnotationsMonitoringService) CloseSupersededTransactions(completedTids 
 
 			if utid.UUID == ctid.UUID {
 
-				//check that it is the same transaction: if so, skip it
+				// check that it is the same transaction: if so, ignore it
 				if utid.TransactionID == ctid.TransactionID {
 					processedTids = append(processedTids, utid.TransactionID)
 					continue
 				}
 
-				//check that it was a transaction that happened before the actual transaction
+				// check that it was a transaction that happened before the actual transaction
 				if isEarlier, startTime := earlierTransaction(utid, ctid); isEarlier {
 
 					duration, err := computeDuration(startTime, ctid.EndTime)
