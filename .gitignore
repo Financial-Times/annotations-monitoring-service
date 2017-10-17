@@ -1,6 +1,6 @@
 *.iml
 .idea
-annotations-monitoring-service*
+/annotations-monitoring-service
 vendor/*/
 .project
 .vscode
