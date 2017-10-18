@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/Financial-Times/go-logger"
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/Financial-Times/go-logger"
 )
 
 const (

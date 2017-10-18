@@ -2,12 +2,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/Financial-Times/go-logger"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/Financial-Times/go-logger"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetLatestEvent_ServerErrors(t *testing.T) {

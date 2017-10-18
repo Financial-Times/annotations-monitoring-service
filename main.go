@@ -1,15 +1,16 @@
 package main
 
 import (
-	health "github.com/Financial-Times/go-fthealth/v1_1"
-	"github.com/Financial-Times/go-logger"
-	status "github.com/Financial-Times/service-status-go/httphandlers"
-	"github.com/jawher/mow.cli"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	health "github.com/Financial-Times/go-fthealth/v1_1"
+	"github.com/Financial-Times/go-logger"
+	status "github.com/Financial-Times/service-status-go/httphandlers"
+	"github.com/jawher/mow.cli"
 )
 
 const (
@@ -48,18 +49,18 @@ func main() {
 		EnvVar: "APP_PORT",
 	})
 
-	maxLookbackPeriod := app.Int(cli.IntOpt{
-		Name:   "maxLookbackPeriod",
+	maxLookbackPeriodMin := app.Int(cli.IntOpt{
+		Name:   "maxLookbackPeriodMin",
 		Value:  4320, // look back for 3 days at the most
 		Desc:   "Defines (in minutes) how far should the monitoring service look back, if newer PublishEnd logs weren't found",
-		EnvVar: "MAX_LOOKBACK_PERIOD",
+		EnvVar: "MAX_LOOKBACK_PERIOD_MIN",
 	})
 
-	supersededCheckbackPeriod := app.Int(cli.IntOpt{
-		Name:   "defaultSupersededCheckPeriod",
+	supersededCheckbackPeriodMin := app.Int(cli.IntOpt{
+		Name:   "defaultSupersededCheckPeriodMin",
 		Value:  4320, // fix the last 3 days' superseded TIDs
 		Desc:   "Defines (in minutes) how far should the monitoring service look back for fixing superseded articles.",
-		EnvVar: "SUPERSEDED_CHECK_PERIOD",
+		EnvVar: "SUPERSEDED_CHECK_PERIOD_MIN",
 	})
 
 	logger.InitDefaultLogger(*appName)
@@ -73,7 +74,7 @@ func main() {
 		}, "")
 
 		go serveAdminEndpoints(*appSystemCode, *appName, *port, *eventReaderURL)
-		startMonitoring(*eventReaderURL, *maxLookbackPeriod, *supersededCheckbackPeriod)
+		startMonitoring(*eventReaderURL, *maxLookbackPeriodMin, *supersededCheckbackPeriodMin)
 
 		waitForInterruptSignal()
 	}

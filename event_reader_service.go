@@ -3,11 +3,12 @@ package main
 import (
 	"encoding/json"
 	"errors"
-	"github.com/Financial-Times/go-logger"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"strconv"
+
+	"github.com/Financial-Times/go-logger"
 )
 
 const (

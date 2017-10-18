@@ -2,12 +2,13 @@ package main
 
 import (
 	"errors"
-	"github.com/Financial-Times/go-logger"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/Financial-Times/go-logger"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 )
 
 func Test_CloseCompletedTransactions_Success(t *testing.T) {
