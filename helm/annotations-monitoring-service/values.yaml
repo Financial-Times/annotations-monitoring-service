@@ -8,8 +8,8 @@ image:
   pullPolicy: IfNotPresent
 env:
   EVENT_READER_URL: "http://splunk-event-reader:8080"
-  MAX_LOOKBACK_PERIOD: "4320"
-  SUPERSEDED_CHECK_PERIOD: "4320"
+  MAX_LOOKBACK_PERIOD_MIN: "4320"
+  SUPERSEDED_CHECK_PERIOD_MIN: "4320"
 resources:
   limits:
     memory: 256Mi

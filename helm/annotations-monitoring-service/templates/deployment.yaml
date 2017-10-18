@@ -28,10 +28,10 @@ spec:
           value: "{{ .Values.service.name }}"
         - name: EVENT_READER_URL
           value: "{{ .Values.env.EVENT_READER_URL }}"
-        - name: MAX_LOOKBACK_PERIOD
-          value: "{{ .Values.env.MAX_LOOKBACK_PERIOD }}"
-        - name: SUPERSEDED_CHECK_PERIOD
-          value: "{{ .Values.env.SUPERSEDED_CHECK_PERIOD }}"
+        - name: MAX_LOOKBACK_PERIOD_MIN
+          value: "{{ .Values.env.MAX_LOOKBACK_PERIOD_MIN }}"
+        - name: SUPERSEDED_CHECK_PERIOD_MIN
+          value: "{{ .Values.env.SUPERSEDED_CHECK_PERIOD_MIN }}"
         ports: 
         - containerPort: 8080 
         livenessProbe: 
