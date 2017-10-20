@@ -34,8 +34,8 @@ Options:
         --app-name="annotations-monitoring-service"                             Application name ($APP_NAME)
         --port="8080"                                                           Port to listen on ($APP_PORT)
         --event-reader-url="http://localhost:8083/__splunk-event-reader"        The address of the event reader application ($EVENT_READER_URL)
-        --maxLookbackPeriodMin="4320"                                           Lookback period (in minutes), with a 3 days default ($MAX_LOOKBACK_PERIOD)
-        --supersededCheckbackPeriodMin="4320"                                   Lookback period (in minutes) for superseding checks, with a 3 days default ($SUPERSEDED_CHECK_PERIOD)
+        --maxLookbackPeriodMin="4320"                                           Lookback period (in minutes), with a 3 days default ($MAX_LOOKBACK_PERIOD_MIN)
+        --defaultSupersededCheckbackPeriodMin="4320"                            Lookback period (in minutes) for superseding checks, with a 3 days default ($SUPERSEDED_CHECK_PERIOD_MIN)
         
 ## Build and deployment
 
