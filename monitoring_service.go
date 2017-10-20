@@ -59,7 +59,8 @@ func (s AnnotationsMonitoringService) CloseCompletedTransactions() {
 			}
 
 			// find start or end event
-			if event.Event == startEvent {
+			// TODO: contentType check can be removed when VIDEO changes are also implemented
+			if event.Event == startEvent && event.ContentType == "Annotations" {
 				startTime = event.Time
 			} else if event.Event == completenessCriteriaEvent && event.Level == infoLevel {
 				endTime = event.Time

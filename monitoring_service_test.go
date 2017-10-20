@@ -26,7 +26,7 @@ func Test_CloseCompletedTransactions_Success(t *testing.T) {
 			TransactionID: "tid1",
 			UUID:          "uuid1",
 			Events: []publishEvent{
-				{ContentType: "", Time: "2017-09-22T11:45:47.23038034Z", Event: startEvent},
+				{ContentType: contentType, Time: "2017-09-22T11:45:47.23038034Z", Event: startEvent},
 				{ContentType: contentType, Time: "2017-09-22T11:45:49.23038034Z", IsValid: "true", Event: "Map"},
 				{ContentType: contentType, Time: "2017-09-22T11:45:53.23038034Z", Event: completenessCriteriaEvent, Level: "info"},
 			}}}
@@ -95,7 +95,7 @@ func Test_CloseCompletedTransactions_WrongTimeFormat(t *testing.T) {
 			TransactionID: "tid1",
 			UUID:          "uuid1",
 			Events: []publishEvent{
-				{ContentType: "", Time: "2017-09-22T11:45:47.23038034Z", Event: startEvent},
+				{ContentType: contentType, Time: "2017-09-22T11:45:47.23038034Z", Event: startEvent},
 				{ContentType: contentType, Time: "2017-09-22T11:45:49.23038034Z", IsValid: "true", Event: "Map"},
 				{ContentType: contentType, Time: "2017-09-22 11:45:00", Event: completenessCriteriaEvent, Level: "info"},
 			}}}
@@ -154,7 +154,7 @@ func Test_CloseCompletedTransactions_Invalid_Message(t *testing.T) {
 			TransactionID: "tid1",
 			UUID:          "uuid1",
 			Events: []publishEvent{
-				{ContentType: "", Time: "2017-09-22T11:45:47.23038034Z", Event: startEvent},
+				{ContentType: contentType, Time: "2017-09-22T11:45:47.23038034Z", Event: startEvent},
 				{ContentType: contentType, Time: "2017-09-22T11:45:49.23038034Z", IsValid: "false", Event: "Map"},
 			}}}
 
@@ -200,7 +200,7 @@ func Test_CloseCompletedTransactions_ComplexScenario(t *testing.T) {
 			UUID:          "uuid1",
 			StartTime:     "2017-09-22T11:45:00.00000000Z",
 			Events: []publishEvent{
-				{ContentType: "", Time: "2017-09-22T11:45:00.00000000Z", Event: startEvent},
+				{ContentType: contentType, Time: "2017-09-22T11:45:00.00000000Z", Event: startEvent},
 				{ContentType: contentType, Time: "2017-09-22T11:45:02.00000000Z", IsValid: "true", Event: "Map"},
 			}},
 		// incomplete - arbitrary order
@@ -209,7 +209,7 @@ func Test_CloseCompletedTransactions_ComplexScenario(t *testing.T) {
 			UUID:          "uuid1",
 			StartTime:     "2017-09-22T11:50:00.00000000Z",
 			Events: []publishEvent{
-				{ContentType: "", Time: "2017-09-22T11:50:00.00000000Z", Event: startEvent},
+				{ContentType: contentType, Time: "2017-09-22T11:50:00.00000000Z", Event: startEvent},
 				{ContentType: contentType, Time: "2017-09-22T11:45:02.00000000Z", IsValid: "true", Event: "Map"},
 			}},
 		transactionEvent{
@@ -217,7 +217,7 @@ func Test_CloseCompletedTransactions_ComplexScenario(t *testing.T) {
 			UUID:          "uuid1",
 			StartTime:     "2017-09-22T11:47:00.00000000Z",
 			Events: []publishEvent{
-				{ContentType: "", Time: "2017-09-22T11:47:00.00000000Z", Event: startEvent},
+				{ContentType: contentType, Time: "2017-09-22T11:47:00.00000000Z", Event: startEvent},
 				{ContentType: contentType, Time: "2017-09-22T11:45:02.00000000Z", IsValid: "true", Event: "Map"},
 			}},
 		// successful one
@@ -226,7 +226,7 @@ func Test_CloseCompletedTransactions_ComplexScenario(t *testing.T) {
 			UUID:          "uuid1",
 			StartTime:     "2017-09-22T11:55:00.00000000Z",
 			Events: []publishEvent{
-				{ContentType: "", Time: "2017-09-22T11:55:00.00000000Z", Event: startEvent},
+				{ContentType: contentType, Time: "2017-09-22T11:55:00.00000000Z", Event: startEvent},
 				{ContentType: contentType, Time: "2017-09-22T11:55:02.00000000Z", IsValid: "true", Event: "Map"},
 				{ContentType: contentType, Time: "2017-09-22T11:55:04.00000000Z", Event: completenessCriteriaEvent, Level: "info"},
 			}},
@@ -236,7 +236,7 @@ func Test_CloseCompletedTransactions_ComplexScenario(t *testing.T) {
 			UUID:          "uuid1",
 			StartTime:     "2017-09-22T11:56:00.00000000Z",
 			Events: []publishEvent{
-				{ContentType: "", Time: "2017-09-22T11:56:00.00000000Z", Event: startEvent},
+				{ContentType: contentType, Time: "2017-09-22T11:56:00.00000000Z", Event: startEvent},
 				{ContentType: contentType, Time: "2017-09-22T11:56:02.00000000Z", IsValid: "true", Event: "Map"},
 				{ContentType: contentType, Time: "2017-09-22T11:56:04.00000000Z", Event: completenessCriteriaEvent, Level: "info"},
 			}},
