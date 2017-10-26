@@ -21,7 +21,7 @@ func Test_CloseCompletedTransactions_Success(t *testing.T) {
 		supersededCheckbackPeriod: 60,
 	}
 
-	tids := transactions{
+	txs := transactions{
 		transactionEvent{
 			TransactionID: "tid1",
 			UUID:          "uuid1",
@@ -34,7 +34,7 @@ func Test_CloseCompletedTransactions_Success(t *testing.T) {
 	readerMock.On("GetLatestEvent", strings.ToLower(contentType), mock.AnythingOfType("string")).
 		Return(publishEvent{Time: time.Now().AddDate(0, 0, -1).Format(defaultTimestampFormat)}, nil).
 		On("GetTransactions", strings.ToLower(contentType), "1445m").
-		Return(tids, nil).
+		Return(txs, nil).
 		On("GetTransactionsForUUIDs", strings.ToLower(contentType), []string{"uuid1"}, "1505m").
 		Return(transactions{}, nil)
 
@@ -90,7 +90,7 @@ func Test_CloseCompletedTransactions_WrongTimeFormat(t *testing.T) {
 		supersededCheckbackPeriod: 60,
 	}
 
-	tids := transactions{
+	txs := transactions{
 		transactionEvent{
 			TransactionID: "tid1",
 			UUID:          "uuid1",
@@ -102,7 +102,7 @@ func Test_CloseCompletedTransactions_WrongTimeFormat(t *testing.T) {
 	readerMock.On("GetLatestEvent", strings.ToLower(contentType), mock.AnythingOfType("string")).
 		Return(publishEvent{Time: time.Now().AddDate(0, 0, -1).Format(defaultTimestampFormat)}, nil).
 		On("GetTransactions", strings.ToLower(contentType), "1445m").
-		Return(tids, nil)
+		Return(txs, nil)
 
 	am.CloseCompletedTransactions()
 
@@ -120,7 +120,7 @@ func Test_CloseCompletedTransactions_NotAnnotationsMessage(t *testing.T) {
 		supersededCheckbackPeriod: 60,
 	}
 
-	tids := transactions{
+	txs := transactions{
 		transactionEvent{
 			TransactionID: "tid1",
 			UUID:          "uuid1",
@@ -131,7 +131,7 @@ func Test_CloseCompletedTransactions_NotAnnotationsMessage(t *testing.T) {
 	readerMock.On("GetLatestEvent", strings.ToLower(contentType), mock.AnythingOfType("string")).
 		Return(publishEvent{Time: time.Now().AddDate(0, 0, -1).Format(defaultTimestampFormat)}, nil).
 		On("GetTransactions", strings.ToLower(contentType), "1445m").
-		Return(tids, nil)
+		Return(txs, nil)
 
 	am.CloseCompletedTransactions()
 
@@ -149,7 +149,7 @@ func Test_CloseCompletedTransactions_Invalid_Message(t *testing.T) {
 		supersededCheckbackPeriod: 60,
 	}
 
-	tids := transactions{
+	txs := transactions{
 		transactionEvent{
 			TransactionID: "tid1",
 			UUID:          "uuid1",
@@ -161,7 +161,7 @@ func Test_CloseCompletedTransactions_Invalid_Message(t *testing.T) {
 	readerMock.On("GetLatestEvent", strings.ToLower(contentType), mock.AnythingOfType("string")).
 		Return(publishEvent{Time: time.Now().AddDate(0, 0, -1).Format(defaultTimestampFormat)}, nil).
 		On("GetTransactions", strings.ToLower(contentType), "1445m").
-		Return(tids, nil).
+		Return(txs, nil).
 		On("GetTransactionsForUUIDs", strings.ToLower(contentType), []string{"uuid1"}, "1505m").
 		Return(transactions{}, nil)
 
@@ -193,7 +193,7 @@ func Test_CloseCompletedTransactions_ComplexScenario(t *testing.T) {
 		supersededCheckbackPeriod: 60,
 	}
 
-	tids := transactions{
+	txs := transactions{
 		// incomplete
 		transactionEvent{
 			TransactionID: "tid1",
@@ -245,9 +245,9 @@ func Test_CloseCompletedTransactions_ComplexScenario(t *testing.T) {
 	readerMock.On("GetLatestEvent", strings.ToLower(contentType), mock.AnythingOfType("string")).
 		Return(publishEvent{Time: time.Now().AddDate(0, 0, -1).Format(defaultTimestampFormat)}, nil).
 		On("GetTransactions", strings.ToLower(contentType), "1445m").
-		Return(tids, nil).
+		Return(txs, nil).
 		On("GetTransactionsForUUIDs", strings.ToLower(contentType), mock.Anything, "1505m").
-		Return(tids, nil)
+		Return(txs, nil)
 
 	am.CloseCompletedTransactions()
 
@@ -278,7 +278,7 @@ func Test_CloseSupersededTransactions(t *testing.T) {
 	hook := logger.NewTestHook("annotations-monitoring-service")
 	var tests = []struct {
 		scenarioName      string
-		completedTids     []completedTransactionEvent
+		completedTxs      []completedTransactionEvent
 		superSeededPeriod int
 		refInterval       int
 		expContentType    string
@@ -336,7 +336,7 @@ func Test_CloseSupersededTransactions(t *testing.T) {
 			"error", "Checking for superseded transactions has failed.",
 		},
 		{
-			"Return unclosed tids for different uuids: ignore them",
+			"Return unclosed transactions for different uuids: ignore them",
 			[]completedTransactionEvent{
 				{TransactionID: "tid2", UUID: "uuid2", StartTime: "2017-09-22T12:31:47.23038034Z"},
 				{TransactionID: "tid1", UUID: "uuid1", StartTime: "2017-09-22T12:00:47.23038034Z"},
@@ -423,7 +423,7 @@ func Test_CloseSupersededTransactions(t *testing.T) {
 		}
 
 		// Set expectations for EventReader Mock object
-		if len(test.completedTids) != 0 {
+		if len(test.completedTxs) != 0 {
 			readerMock.On("GetTransactionsForUUIDs", test.expContentType, test.expUUIDs, test.expLookbackPeriod).
 				Return(test.resTransactions, test.resError)
 		} else {
@@ -431,7 +431,7 @@ func Test_CloseSupersededTransactions(t *testing.T) {
 		}
 
 		// Execute superseded check operation
-		am.CloseSupersededTransactions(test.completedTids, test.refInterval)
+		am.CloseSupersededTransactions(test.completedTxs, test.refInterval)
 
 		// Verifications - check that the mock object was called with the previously specified parameters
 		readerMock.AssertExpectations(t)
@@ -456,23 +456,23 @@ func Test_CloseSupersededTransactions_ComplexScenario(t *testing.T) {
 		supersededCheckbackPeriod: 60,
 	}
 
-	completedTids := []completedTransactionEvent{
+	completedTxs := []completedTransactionEvent{
 		{TransactionID: "tid2", UUID: "uuid2", StartTime: "2017-09-22T12:31:47.23038034Z", EndTime: "2017-09-22T12:31:49.23038034Z"},
 		{TransactionID: "tid1", UUID: "uuid1", StartTime: "2017-09-22T12:00:47.23038034Z", EndTime: "2017-09-22T12:00:49.23038034Z"},
 	}
 
 	uuids := []string{"uuid1", "uuid2"}
 
-	returnedTIDs := transactions{
+	returnedTxs := transactions{
 		transactionEvent{
 			TransactionID: "tid1_2",
 			UUID:          "uuid1",
 			Events:        []publishEvent{{ContentType: contentType, Time: "2017-09-22T11:45:47.23038034Z", Event: startEvent}}}}
 
 	readerMock.On("GetTransactionsForUUIDs", strings.ToLower(contentType), uuids, "120m").
-		Return(returnedTIDs, nil)
+		Return(returnedTxs, nil)
 
-	am.CloseSupersededTransactions(completedTids, 60)
+	am.CloseSupersededTransactions(completedTxs, 60)
 
 	// Verifications - check that the mock object was called with the previously specified parameters
 	readerMock.AssertExpectations(t)
@@ -528,10 +528,10 @@ func Test_DetermineLookbackPeriod(t *testing.T) {
 
 func Test_earlierTransaction(t *testing.T) {
 	var tests = []struct {
-		unknown_tid   transactionEvent
-		completed_tid completedTransactionEvent
-		isEarlier     bool
-		startTime     string
+		unknown_tx   transactionEvent
+		completed_tx completedTransactionEvent
+		isEarlier    bool
+		startTime    string
 	}{
 		{transactionEvent{}, completedTransactionEvent{}, false, ""},
 		{transactionEvent{
@@ -559,7 +559,7 @@ func Test_earlierTransaction(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		b, st := earlierTransaction(test.unknown_tid, test.completed_tid)
+		b, st := earlierTransaction(test.unknown_tx, test.completed_tx)
 		assert.Equal(t, b, test.isEarlier)
 		assert.Equal(t, st, test.startTime)
 	}

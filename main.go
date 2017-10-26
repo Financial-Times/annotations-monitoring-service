@@ -58,7 +58,7 @@ func main() {
 
 	supersededCheckbackPeriodMin := app.Int(cli.IntOpt{
 		Name:   "defaultSupersededCheckPeriodMin",
-		Value:  4320, // fix the last 3 days' superseded TIDs
+		Value:  4320, // fix the last 3 days' superseded transactions
 		Desc:   "Defines (in minutes) how far should the monitoring service look back for fixing superseded articles.",
 		EnvVar: "SUPERSEDED_CHECK_PERIOD_MIN",
 	})

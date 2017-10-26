@@ -20,7 +20,7 @@ const (
 
 type MonitoringService interface {
 	CloseCompletedTransactions()
-	CloseSupersededTransactions(completedTids completedTransactionEvents, refInterval int)
+	CloseSupersededTransactions(completedTransactions completedTransactionEvents, refInterval int)
 	DetermineLookbackPeriod() int
 }
 
@@ -35,7 +35,7 @@ func (s AnnotationsMonitoringService) CloseCompletedTransactions() {
 	lookbackTime := s.DetermineLookbackPeriod()
 
 	// retrieve all the open transactions for a particular content type
-	tids, err := s.eventReader.GetTransactions(strings.ToLower(contentType), fmt.Sprintf("%dm", lookbackTime))
+	txs, err := s.eventReader.GetTransactions(strings.ToLower(contentType), fmt.Sprintf("%dm", lookbackTime))
 	if err != nil {
 		logger.Errorf(map[string]interface{}{}, err, "Monitoring transactions has failed.")
 		return
@@ -43,16 +43,16 @@ func (s AnnotationsMonitoringService) CloseCompletedTransactions() {
 
 	// transactions should be closed in the order they happened, so that the latest PublishEnd event indicates the actual status;
 	// in this way, if the app restarts, the unprocessed transactions would all be picked up again.
-	sort.Sort(tids)
+	sort.Sort(txs)
 
-	var completedTids completedTransactionEvents
+	var completedTxs completedTransactionEvents
 
-	for _, tid := range tids {
+	for _, tx := range txs {
 
 		var startTime, endTime, isValid string
 		isAnnotationEvent := false
 
-		for _, event := range tid.Events {
+		for _, event := range tx.Events {
 			// identify the annotation events
 			if event.ContentType == contentType {
 				isAnnotationEvent = true
@@ -83,17 +83,17 @@ func (s AnnotationsMonitoringService) CloseCompletedTransactions() {
 
 		duration, err := computeDuration(startTime, endTime)
 		if err != nil {
-			logger.NewEntry(tid.TransactionID).WithUUID(tid.UUID).WithError(err).Error("Duration couldn't be determined, transaction won't be closed.")
+			logger.NewEntry(tx.TransactionID).WithUUID(tx.UUID).WithError(err).Error("Duration couldn't be determined, transaction won't be closed.")
 			continue
 		}
 
-		completedTids = append(completedTids, completedTransactionEvent{tid.TransactionID, tid.UUID, fmt.Sprint(duration.Seconds()), startTime, endTime})
+		completedTxs = append(completedTxs, completedTransactionEvent{tx.TransactionID, tx.UUID, fmt.Sprint(duration.Seconds()), startTime, endTime})
 		logger.Infof(map[string]interface{}{
 			"@time":                endTime,
 			"logTime":              time.Now().Format(defaultTimestampFormat),
 			"event":                endEvent,
-			"transaction_id":       tid.TransactionID,
-			"uuid":                 tid.UUID,
+			"transaction_id":       tx.TransactionID,
+			"uuid":                 tx.UUID,
 			"startTime":            startTime,
 			"endTime":              endTime,
 			"transaction_duration": fmt.Sprint(duration.Seconds()),
@@ -103,7 +103,7 @@ func (s AnnotationsMonitoringService) CloseCompletedTransactions() {
 		}, "Transaction has finished")
 	}
 
-	s.CloseSupersededTransactions(completedTids, lookbackTime)
+	s.CloseSupersededTransactions(completedTxs, lookbackTime)
 }
 
 func (s AnnotationsMonitoringService) DetermineLookbackPeriod() int {
@@ -129,15 +129,15 @@ func (s AnnotationsMonitoringService) DetermineLookbackPeriod() int {
 	return int(lookbackPeriod)
 }
 
-func (s AnnotationsMonitoringService) CloseSupersededTransactions(completedTids completedTransactionEvents, refInterval int) {
+func (s AnnotationsMonitoringService) CloseSupersededTransactions(completedTransactions completedTransactionEvents, refInterval int) {
 
 	// sort transactions
-	sort.Sort(completedTids)
+	sort.Sort(completedTransactions)
 
 	// collect all the uuids that have successfully published in the recent transaction set
 	var uuids []string
-	for _, tid := range completedTids {
-		uuids = uniqueAppend(uuids, tid.UUID)
+	for _, tx := range completedTransactions {
+		uuids = uniqueAppend(uuids, tx.UUID)
 	}
 
 	if len(uuids) == 0 {
@@ -145,60 +145,59 @@ func (s AnnotationsMonitoringService) CloseSupersededTransactions(completedTids 
 	}
 
 	// get all the uncompleted transactions for those UUIDs, that have started before our actual set
-	unprocessedTids, err := s.eventReader.GetTransactionsForUUIDs(strings.ToLower(contentType), uuids, fmt.Sprintf("%dm", refInterval+s.supersededCheckbackPeriod))
+	unprocessedTxs, err := s.eventReader.GetTransactionsForUUIDs(strings.ToLower(contentType), uuids, fmt.Sprintf("%dm", refInterval+s.supersededCheckbackPeriod))
 	if err != nil {
 		logger.Errorf(nil, err, "Checking for superseded transactions has failed.")
 		return
 	}
-	sort.Sort(unprocessedTids)
+	sort.Sort(unprocessedTxs)
 
 	// take all the completed transactions
-	for _, ctid := range completedTids {
+	for _, ctx := range completedTransactions {
 
 		processedTids := []string{}
 
 		// verify if within the unprocessed transactions there is any that have been superseded
-		for _, utid := range unprocessedTids {
+		for _, utx := range unprocessedTxs {
 
-			if utid.UUID == ctid.UUID {
+			if utx.UUID == ctx.UUID {
 
 				// check that it is the same transaction: if so, ignore it
-				if utid.TransactionID == ctid.TransactionID {
-					processedTids = append(processedTids, utid.TransactionID)
+				if utx.TransactionID == ctx.TransactionID {
+					processedTids = append(processedTids, utx.TransactionID)
 					continue
 				}
 
 				// check that it was a transaction that happened before the actual transaction
-				if isEarlier, startTime := earlierTransaction(utid, ctid); isEarlier {
+				if isEarlier, startTime := earlierTransaction(utx, ctx); isEarlier {
 
-					duration, err := computeDuration(startTime, ctid.EndTime)
+					duration, err := computeDuration(startTime, ctx.EndTime)
 					if err != nil {
-						logger.NewEntry(utid.TransactionID).WithUUID(utid.UUID).WithError(err).Error("Duration couldn't be determined, transaction won't be closed.")
+						logger.NewEntry(utx.TransactionID).WithUUID(utx.UUID).WithError(err).Error("Duration couldn't be determined, transaction won't be closed.")
 						continue
 					}
 
-					processedTids = append(processedTids, utid.TransactionID)
+					processedTids = append(processedTids, utx.TransactionID)
 					logger.Infof(map[string]interface{}{
-						"@time":                ctid.EndTime,
+						"@time":                ctx.EndTime,
 						"logTime":              time.Now().Format(defaultTimestampFormat),
 						"event":                endEvent,
-						"transaction_id":       utid.TransactionID,
-						"uuid":                 utid.UUID,
+						"transaction_id":       utx.TransactionID,
+						"uuid":                 utx.UUID,
 						"startTime":            startTime,
-						"endTime":              ctid.EndTime,
+						"endTime":              ctx.EndTime,
 						"transaction_duration": fmt.Sprint(duration.Seconds()),
 						"monitoring_event":     "true",
-						// isValid field will be missing, because we can't tell for sure if that tid was failing
-						// before it reached the mapper, of not. Also, we can't use the actual value for that tid, because the article
+						// isValid field will be missing, because we can't tell for sure if that transaction was failing
+						// before it reached the mapper, or not. Also, we can't use the actual value for that transaction, because the article
 						// might have suffered validation changes by then.
 						"content_type": contentType,
-					}, fmt.Sprintf("Transaction has been superseded by tid=%s.", ctid.TransactionID))
-
+					}, fmt.Sprintf("Transaction has been superseded by tid=%s.", ctx.TransactionID))
 				}
 			}
 		}
 
-		unprocessedTids = removeElements(unprocessedTids, processedTids)
+		unprocessedTxs = removeElements(unprocessedTxs, processedTids)
 	}
 }
 
@@ -235,18 +234,18 @@ func uniqueAppend(uuids []string, uuid string) []string {
 	return append(uuids, uuid)
 }
 
-func earlierTransaction(utid transactionEvent, ctid completedTransactionEvent) (isEarlier bool, startTime string) {
+func earlierTransaction(utx transactionEvent, ctx completedTransactionEvent) (isEarlier bool, startTime string) {
 
 	isAnnotationEvent := false
 	isEarlier = false
 	startTime = ""
-	for _, event := range utid.Events {
+	for _, event := range utx.Events {
 		// mark as annotations event
 		if event.ContentType == contentType {
 			isAnnotationEvent = true
 		}
 		// find start event
-		if event.Event == startEvent && event.Time < ctid.StartTime {
+		if event.Event == startEvent && event.Time < ctx.StartTime {
 			isEarlier = true
 			startTime = event.Time
 		}

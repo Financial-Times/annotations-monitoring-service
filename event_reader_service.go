@@ -112,15 +112,15 @@ func (ser SplunkEventReader) GetTransactionsForUUIDs(contentType string, uuids [
 		return nil, err
 	}
 
-	var tids transactions
-	if err := json.Unmarshal(b, &tids); err != nil {
+	var txs transactions
+	if err := json.Unmarshal(b, &txs); err != nil {
 		logger.Errorf(map[string]interface{}{
 			"url": req.URL.String(),
 		}, err, "Error unmarshalling transaction log messages")
 		return nil, err
 	}
 
-	return tids, nil
+	return txs, nil
 }
 
 func cleanUp(resp *http.Response) {
