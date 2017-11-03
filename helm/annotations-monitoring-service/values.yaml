@@ -1,0 +1,17 @@
+# Default values for annotations-monitoring-service.
+service:
+  name: "annotations-monitoring-service" # The name of the service, should be defined in the specific app-configs folder.
+  hasHealthcheck: "true"
+replicaCount: 1
+image:
+  repository: coco/annotations-monitoring-service
+  pullPolicy: IfNotPresent
+env:
+  EVENT_READER_URL: "http://splunk-event-reader:8080"
+  MAX_LOOKBACK_PERIOD_MIN: "4320"
+  SUPERSEDED_CHECK_PERIOD_MIN: "4320"
+resources:
+  limits:
+    memory: 256Mi
+
+

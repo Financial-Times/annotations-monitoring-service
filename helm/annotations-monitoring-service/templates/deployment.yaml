@@ -1,0 +1,49 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: {{ .Values.service.name }} 
+  labels:
+    chart: "{{ .Chart.Name }}-{{ .Chart.Version }}" 
+    visualize: "true" 
+    app: {{ .Values.service.name }} 
+spec:
+  replicas: {{ .Values.replicaCount }} 
+  selector: 
+    matchLabels:
+      app: {{ .Values.service.name }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.service.name }}
+        visualize: "true" 
+    spec:
+      containers: 
+      - name: {{ .Values.service.name }} 
+        image: "{{ .Values.image.repository }}:{{ .Chart.Version }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        env:
+        - name: APP_PORT
+          value: "8080"
+        - name: APP_NAME
+          value: "{{ .Values.service.name }}"
+        - name: EVENT_READER_URL
+          value: "{{ .Values.env.EVENT_READER_URL }}"
+        - name: MAX_LOOKBACK_PERIOD_MIN
+          value: "{{ .Values.env.MAX_LOOKBACK_PERIOD_MIN }}"
+        - name: SUPERSEDED_CHECK_PERIOD_MIN
+          value: "{{ .Values.env.SUPERSEDED_CHECK_PERIOD_MIN }}"
+        ports: 
+        - containerPort: 8080 
+        livenessProbe: 
+          tcpSocket: 
+            port: 8080 
+          initialDelaySeconds: 10 
+        readinessProbe: 
+          httpGet: 
+            path: "/__gtg" 
+            port: 8080 
+          initialDelaySeconds: 15 
+          periodSeconds: 30 
+        resources: 
+{{ toYaml .Values.resources | indent 12 }}
+
