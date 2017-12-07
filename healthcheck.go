@@ -66,7 +66,7 @@ func (service *healthService) eventReaderReachabilityChecker() (string, error) {
 	defer cleanUp(resp)
 
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Sprintf("Connecting to %s was not successful. Status: %d", req.URL.String(), resp.StatusCode), err
+		return fmt.Sprintf("Connecting to %s was not successful. Status: %d", req.URL.String(), resp.StatusCode), fmt.Errorf("Status: %d", resp.StatusCode)
 	}
 
 	_, err = ioutil.ReadAll(resp.Body)

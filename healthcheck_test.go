@@ -20,7 +20,7 @@ func TestEventReaderReachabilityChecker_ServiceUnavailable(t *testing.T) {
 	message, err := healthService.eventReaderReachabilityChecker()
 
 	assert.Equal(t, fmt.Sprintf("Connecting to %s/__gtg was not successful. Status: %d", splunkServer.URL, http.StatusServiceUnavailable), message)
-	assert.Nil(t, err)
+	assert.Equal(t, fmt.Errorf("Status: %d", http.StatusServiceUnavailable), err)
 }
 
 func TestEventReaderReachabilityChecker_RequestError(t *testing.T) {
