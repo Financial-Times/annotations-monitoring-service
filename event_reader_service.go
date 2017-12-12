@@ -8,13 +8,14 @@ import (
 	"net/http"
 	"strconv"
 
+	"fmt"
 	"github.com/Financial-Times/go-logger"
 )
 
 const (
-	uuidPathVar      = "uuid"
-	intervalPathVar  = "interval"
-	lastEventPathVar = "lastEvent"
+	uuidPathVar         = "uuid"
+	earliestTimePathVar = "earliestTime"
+	lastEventPathVar    = "lastEvent"
 )
 
 type EventReader interface {
@@ -31,7 +32,7 @@ func (ser SplunkEventReader) GetLatestEvent(contentType string, lookbackPeriod s
 	req, err := http.NewRequest("GET", ser.eventReaderAddress+"/"+contentType+"/events", nil)
 
 	q := req.URL.Query()
-	q.Add(intervalPathVar, lookbackPeriod)
+	q.Add(earliestTimePathVar, fmt.Sprintf("-%s", lookbackPeriod))
 	q.Add(lastEventPathVar, strconv.FormatBool(true))
 	req.URL.RawQuery = q.Encode()
 
@@ -75,7 +76,7 @@ func (ser SplunkEventReader) GetTransactions(contentType string, lookbackPeriod 
 	return ser.GetTransactionsForUUIDs(contentType, nil, lookbackPeriod)
 }
 
-func (ser SplunkEventReader) GetTransactionsForUUIDs(contentType string, uuids []string, interval string) (transactions, error) {
+func (ser SplunkEventReader) GetTransactionsForUUIDs(contentType string, uuids []string, earliestTime string) (transactions, error) {
 
 	req, err := http.NewRequest("GET", ser.eventReaderAddress+"/"+contentType+"/transactions", nil)
 	q := req.URL.Query()
@@ -84,7 +85,7 @@ func (ser SplunkEventReader) GetTransactionsForUUIDs(contentType string, uuids [
 			q.Add(uuidPathVar, uuid)
 		}
 	}
-	q.Add(intervalPathVar, interval)
+	q.Add(earliestTimePathVar, fmt.Sprintf("-%s", earliestTime))
 	req.URL.RawQuery = q.Encode()
 
 	resp, err := http.DefaultClient.Do(req)

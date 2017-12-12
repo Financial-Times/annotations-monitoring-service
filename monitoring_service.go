@@ -50,17 +50,9 @@ func (s AnnotationsMonitoringService) CloseCompletedTransactions() {
 	for _, tx := range txs {
 
 		var startTime, endTime, isValid string
-		isAnnotationEvent := false
-
 		for _, event := range tx.Events {
-			// identify the annotation events
-			if event.ContentType == contentType {
-				isAnnotationEvent = true
-			}
-
 			// find start or end event
-			// TODO: contentType check can be removed when VIDEO changes are also implemented
-			if event.Event == startEvent && event.ContentType == "Annotations" {
+			if event.Event == startEvent {
 				startTime = event.Time
 			} else if event.Event == completenessCriteriaEvent && event.Level == infoLevel {
 				endTime = event.Time
@@ -77,7 +69,7 @@ func (s AnnotationsMonitoringService) CloseCompletedTransactions() {
 		}
 
 		// if it is not a completed and valid annotation transaction: ignore it
-		if !isAnnotationEvent || startTime == "" || endTime == "" || isValid == "" {
+		if startTime == "" || endTime == "" || isValid == "" {
 			continue
 		}
 
