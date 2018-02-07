@@ -12,6 +12,6 @@ env:
   SUPERSEDED_CHECK_PERIOD_MIN: "4320"
 resources:
   limits:
-    memory: 256Mi
+    memory: 512Mi
 
 
