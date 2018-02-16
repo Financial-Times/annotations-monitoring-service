@@ -27,11 +27,17 @@ spec:
         - name: APP_NAME
           value: "{{ .Values.service.name }}"
         - name: EVENT_READER_URL
-          value: "{{ .Values.env.EVENT_READER_URL }}"
+          value: "http://splunk-event-reader:8080"
         - name: MAX_LOOKBACK_PERIOD_MIN
-          value: "{{ .Values.env.MAX_LOOKBACK_PERIOD_MIN }}"
+          valueFrom:
+            configMapKeyRef:
+              name: global-config
+              key: monitoring.annotations.lookback_period_min
         - name: SUPERSEDED_CHECK_PERIOD_MIN
-          value: "{{ .Values.env.SUPERSEDED_CHECK_PERIOD_MIN }}"
+          valueFrom:
+            configMapKeyRef:
+              name: global-config
+              key: monitoring.annotations.superseeded_period_min
         ports: 
         - containerPort: 8080 
         livenessProbe: 

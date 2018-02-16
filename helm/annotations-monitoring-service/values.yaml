@@ -6,12 +6,8 @@ replicaCount: 1
 image:
   repository: coco/annotations-monitoring-service
   pullPolicy: IfNotPresent
-env:
-  EVENT_READER_URL: "http://splunk-event-reader:8080"
-  MAX_LOOKBACK_PERIOD_MIN: "4320"
-  SUPERSEDED_CHECK_PERIOD_MIN: "4320"
 resources:
+  requests:
+    memory: 512Mi
   limits:
     memory: 512Mi
-
-
