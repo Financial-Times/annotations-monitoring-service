@@ -90,7 +90,16 @@ func serveAdminEndpoints(appSystemCode, appName, port, eventReaderUrl string) {
 
 	serveMux := http.NewServeMux()
 
-	hc := health.HealthCheck{SystemCode: appSystemCode, Name: appName, Description: appDescription, Checks: healthService.checks}
+	hc := health.TimedHealthCheck{
+		HealthCheck: health.HealthCheck{
+			SystemCode:  appSystemCode,
+			Name:        appName,
+			Description: appDescription,
+			Checks:      healthService.checks,
+		},
+		Timeout: 10 * time.Second,
+	}
+
 	serveMux.HandleFunc(healthPath, health.Handler(hc))
 	serveMux.HandleFunc(status.GTGPath, status.NewGoodToGoHandler(healthService.gtgCheck))
 	serveMux.HandleFunc(status.BuildInfoPath, status.BuildInfoHandler)
