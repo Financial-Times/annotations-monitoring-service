@@ -4,3 +4,4 @@
 vendor/*/
 .project
 .vscode
+annotations-monitoring-service.exe
