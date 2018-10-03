@@ -45,7 +45,7 @@ func (service *healthService) eventReaderCheck() health.Check {
 		BusinessImpact:   "Event reader is not available, the success of an annotation publish can't be determined.",
 		Name:             "Event reader availability healthcheck",
 		PanicGuide:       "https://dewey.ft.com/annotations-monitoring-service.html",
-		Severity:         1,
+		Severity:         2,
 		TechnicalSummary: "Splunk event reader is not reachable.",
 		Checker:          service.eventReaderReachabilityChecker,
 	}
