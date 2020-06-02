@@ -3,6 +3,7 @@ service:
   name: "annotations-monitoring-service" # The name of the service, should be defined in the specific app-configs folder.
   hasHealthcheck: "true"
 replicaCount: 1
+eksCluster: false
 image:
   repository: coco/annotations-monitoring-service
   pullPolicy: IfNotPresent
