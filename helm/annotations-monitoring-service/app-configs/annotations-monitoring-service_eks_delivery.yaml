@@ -2,4 +2,3 @@
 replicaCount: 1
 service:
   name: annotations-monitoring-service
-eksCluster: true
