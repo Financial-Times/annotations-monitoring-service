@@ -1,4 +1,6 @@
-version: 2
+version: 2.1
+orbs:
+  ft-golang-ci: financial-times/golang-ci@1
 jobs:
   build:
     working_directory: /go/src/github.com/Financial-Times/annotations-monitoring-service
@@ -56,3 +58,8 @@ workflows:
       - dockerfile:
           requires:
             - build
+  snyk-scanning:
+    jobs:
+      - ft-golang-ci/scan:
+          name: scan-dependencies
+          context: cm-team-snyk

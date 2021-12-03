@@ -18,22 +18,6 @@ Bronze
 
 Production
 
-## Delivered By
-
-content
-
-## Supported By
-
-content
-
-## Known About By
-
-- elitsa.pavlova
-- ivan.nikolov
-- marina.chompalova
-- miroslav.gatsanoga
-- kalin.arsov
-
 ## Host Platform
 
 AWS
@@ -58,10 +42,6 @@ No
 ## Contains Sensitive Data
 
 No
-
-## Dependencies
-
-- splunk-event-reader
 
 ## Failover Architecture Type
 
