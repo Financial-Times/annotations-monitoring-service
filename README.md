@@ -10,18 +10,15 @@ Service responsible for monitoring annotations publishes.
 
 Download the source code, dependencies and test dependencies:
 
-        go get -u github.com/kardianos/govendor
-        go get -u github.com/Financial-Times/annotations-monitoring-service
+        go get github.com/Financial-Times/annotations-monitoring-service
         cd $GOPATH/src/github.com/Financial-Times/annotations-monitoring-service
-        govendor sync
-        go build .
+        go build -mod=readonly
 
 ## Running locally
 
 1. Run the tests and install the binary:
 
-        govendor sync
-        govendor test -v -race
+        go test -mod=readonly -race ./...
         go install
 
 2. Run the binary (using the `help` flag to see the available optional arguments):
